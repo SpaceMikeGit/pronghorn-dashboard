@@ -311,103 +311,333 @@ function BrandProfile({ profile, setProfile }) {
   )
 }
 
+/* ── Base64 helpers ──────────────────────────────────────────────────── */
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload  = () => resolve(reader.result.split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload  = () => resolve(reader.result.split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+/* ── StepFlowIndicator ───────────────────────────────────────────────── */
+function StepFlowIndicator({ steps }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 20 }}>
+      {steps.map((step, i) => {
+        const isComplete = step.state === 'complete'
+        const isActive   = step.state === 'active'
+        const color       = isComplete ? '#6BD4B0' : isActive ? '#F2EDE4' : '#3A3733'
+        const circleBg    = isComplete ? 'rgba(42,92,74,0.35)' : isActive ? 'rgba(242,237,228,0.10)' : 'rgba(242,237,228,0.03)'
+        const circleBdr   = isComplete ? '#4A9C7A' : isActive ? 'rgba(242,237,228,0.25)' : 'rgba(242,237,228,0.07)'
+        return (
+          <div key={step.label} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? 1 : 0 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }} title={step.tooltip || ''}>
+              <div style={{ width: 26, height: 26, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: circleBg, border: `1px solid ${circleBdr}` }}>
+                {isComplete
+                  ? <svg width="10" height="10" viewBox="0 0 10 10"><polyline points="1.5,5 4,7.5 8.5,2.5" stroke="#6BD4B0" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  : step.state === 'locked'
+                    ? <svg width="9" height="10" viewBox="0 0 9 10" fill="none"><rect x="1" y="4.5" width="7" height="5" rx="1" stroke="#3A3733" strokeWidth="1.2"/><path d="M2.5 4.5V3a2 2 0 0 1 4 0v1.5" stroke="#3A3733" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                    : <span style={{ fontSize: 9, color, fontFamily: 'DM Sans', fontWeight: 500 }}>{i + 1}</span>
+                }
+              </div>
+              <span style={{ fontSize: 9, color, letterSpacing: '0.05em', whiteSpace: 'nowrap', textAlign: 'center', lineHeight: 1.3 }}>{step.label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, height: 1, background: 'rgba(242,237,228,0.07)', margin: '0 6px', marginBottom: 18 }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ── Section 2: Asset Studio ────────────────────────────────────────── */
 function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, onNewCampaign, loadingCampaigns }) {
-  const [pillar, setPillar]     = useState('The Ritual')
-  const [platforms, setPlatforms] = useState(['Instagram'])
+  const [pillar,        setPillar]        = useState('The Ritual')
+  const [platform,      setPlatform]      = useState('Instagram')
+  const [refPreview,    setRefPreview]    = useState(null)
+  const [refR2Key,      setRefR2Key]      = useState(null)
+  const [uploadingRef,  setUploadingRef]  = useState(false)
+  const [generatedImage, setGeneratedImage] = useState(null)
+  const [generating,    setGenerating]    = useState(false)
+  const [progress,      setProgress]      = useState(0)
+  const [genError,      setGenError]      = useState(null)
+  const [savingToLib,   setSavingToLib]   = useState(false)
+  const [savedToLib,    setSavedToLib]    = useState(false)
+  const fileInputRef = useRef(null)
+  const progressRef  = useRef(null)
 
-  const completeness = calcCompleteness(profile)
-  const notEnough = completeness < 40
+  const profileReady = calcCompleteness(profile) >= 40
+  const brandId      = slugify(profile.brandName)
 
-  const togglePlatform = (p) => {
-    setPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])
+  const buildPrompt = () => [
+    profile.brandName ? `${profile.brandName} premium spirits` : 'premium spirits',
+    profile.category  || '',
+    `brand photo for ${platform}, ${pillar} content pillar`,
+    selectedCampaign?.theme         ? `Campaign: ${selectedCampaign.theme}` : '',
+    selectedCampaign?.toneDirection ? `Tone: ${selectedCampaign.toneDirection}` : '',
+    profile.signatureServe          ? `Feature: ${profile.signatureServe}` : '',
+    'Cinematic spirits photography, dark moody background, warm amber tones, high-end commercial quality, no text on image',
+  ].filter(Boolean).join('. ')
+
+  const startProgress = () => {
+    setProgress(0)
+    let p = 0
+    progressRef.current = setInterval(() => { p += (84 - p) * 0.035; setProgress(Math.min(p, 84)) }, 500)
+  }
+  const stopProgress = (final = 100) => {
+    if (progressRef.current) { clearInterval(progressRef.current); progressRef.current = null }
+    setProgress(final)
+  }
+  useEffect(() => () => { if (progressRef.current) clearInterval(progressRef.current) }, [])
+
+  const handleRefUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setRefPreview(URL.createObjectURL(file))
+    setUploadingRef(true)
+    try {
+      const b64 = await fileToBase64(file)
+      const res = await fetch('/.netlify/functions/asset-upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileBase64: b64, filename: file.name, contentType: file.type, brandId, campaignId: selectedCampaign?.campaignId }),
+      })
+      const data = await res.json()
+      if (data.key) setRefR2Key(data.key)
+    } catch {}
+    setUploadingRef(false)
   }
 
+  const pollForImage = async (requestId, prompt) => {
+    const deadline = Date.now() + 110000
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 3000))
+      try {
+        const res  = await fetch(`/.netlify/functions/generate-image?requestId=${requestId}`)
+        const data = await res.json()
+        if (data.imageUrl) { stopProgress(100); setGeneratedImage({ url: data.imageUrl, prompt, requestId }); return }
+      } catch {}
+    }
+    stopProgress(0); setGenError('Generation timed out. Try again.')
+  }
+
+  const handleGenerate = async () => {
+    if (!profileReady || generating) return
+    setGenerating(true); setGenError(null); setSavedToLib(false); setGeneratedImage(null)
+    startProgress()
+    const prompt = buildPrompt()
+    try {
+      const res  = await fetch('/.netlify/functions/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, width: 1024, height: 1024, brandId, campaignId: selectedCampaign?.campaignId }),
+      })
+      const data = await res.json()
+      if (res.status === 200 && data.imageUrl) {
+        stopProgress(100); setGeneratedImage({ url: data.imageUrl, prompt, requestId: data.requestId })
+      } else if (res.status === 202 && data.requestId) {
+        await pollForImage(data.requestId, prompt)
+      } else {
+        throw new Error(data.error || 'Generation failed')
+      }
+    } catch (err) { stopProgress(0); setGenError(err.message) }
+    setGenerating(false)
+  }
+
+  const handleDownload = () => {
+    if (!generatedImage?.url) return
+    const a = document.createElement('a')
+    a.href = generatedImage.url; a.download = `pronghorn-asset-${Date.now()}.jpg`; a.target = '_blank'; a.click()
+  }
+
+  const handleCopyPrompt = () => {
+    if (generatedImage?.prompt) navigator.clipboard.writeText(generatedImage.prompt).catch(() => {})
+  }
+
+  const handleSaveToLibrary = async () => {
+    if (!generatedImage?.url || savingToLib) return
+    setSavingToLib(true)
+    try {
+      const imgRes = await fetch(generatedImage.url)
+      const blob   = await imgRes.blob()
+      const b64    = await blobToBase64(blob)
+      await fetch('/.netlify/functions/asset-upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileBase64: b64, filename: `generated-${Date.now()}.jpg`, contentType: 'image/jpeg', brandId, campaignId: selectedCampaign?.campaignId }),
+      })
+      setSavedToLib(true)
+    } catch {}
+    setSavingToLib(false)
+  }
+
+  const steps = [
+    { label: 'Brand Profile',   state: profileReady    ? 'complete' : 'active',   tooltip: profileReady ? '' : 'Complete Brand Profile to at least 40%' },
+    { label: 'Reference Image', state: refPreview      ? 'complete' : profileReady ? 'active' : 'locked', tooltip: !profileReady ? 'Complete Brand Profile first' : 'Optional — upload a reference photo' },
+    { label: 'Generate Image',  state: generatedImage  ? 'complete' : profileReady ? 'active' : 'locked', tooltip: !profileReady ? 'Complete Brand Profile first' : 'Click Generate Image to create an asset' },
+    { label: 'Generate Video',  state: 'locked', tooltip: 'Coming in next release' },
+  ]
+
+  const actionBtn = (label, onClick, disabled = false, active = false) => (
+    <button onClick={onClick} disabled={disabled} style={{
+      padding: '8px 14px', background: active ? 'rgba(42,92,74,0.30)' : 'rgba(242,237,228,0.05)',
+      border: `1px solid ${active ? '#4A9C7A' : 'rgba(242,237,228,0.12)'}`,
+      borderRadius: 6, color: active ? '#6BD4B0' : '#F2EDE4',
+      fontFamily: 'DM Sans', fontSize: 11, cursor: disabled ? 'default' : 'pointer', whiteSpace: 'nowrap',
+    }}>{label}</button>
+  )
+
   return (
-    <div className="content-area">
-      <p className="section-header">Asset Studio</p>
-      <p className="section-subheader">
-        Generate platform-ready assets from your brand profile. Select a content pillar and platform set.
-      </p>
+    <div className="content-area" style={{ display: 'flex', flexDirection: 'column' }}>
+      <p className="section-header" style={{ marginBottom: 6 }}>Asset Studio</p>
+      <StepFlowIndicator steps={steps} />
 
-      <CampaignSelector
-        campaigns={campaigns}
-        selectedCampaign={selectedCampaign}
-        onSelect={onSelectCampaign}
-        onNewCampaign={onNewCampaign}
-        loading={loadingCampaigns}
-      />
+      <div style={{ display: 'flex', gap: 20 }}>
 
-      {notEnough && (
-        <div style={{ padding: '12px 16px', background: 'rgba(244,114,90,0.08)', border: '1px solid rgba(244,114,90,0.20)', borderRadius: 8, marginBottom: 20, fontSize: 12, color: '#F4725A' }}>
-          Complete your Brand Profile to at least 40% before generating assets. Current: {completeness}%.
+        {/* ── Left column — controls ────────────────────────────────── */}
+        <div style={{ width: 256, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+          {/* Brand Profile mini-summary */}
+          <div className="card" style={{ padding: '10px 12px' }}>
+            <div className="card-title" style={{ fontSize: 10, marginBottom: 6 }}>Brand Profile</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <div style={{ flex: 1, height: 3, background: 'rgba(242,237,228,0.08)', borderRadius: 2 }}>
+                <div style={{ width: `${calcCompleteness(profile)}%`, height: '100%', background: profileReady ? '#2A5C4A' : '#F4725A', borderRadius: 2, transition: 'width 300ms' }} />
+              </div>
+              <span style={{ fontSize: 10, color: profileReady ? '#6BD4B0' : '#F4725A', flexShrink: 0 }}>{calcCompleteness(profile)}%</span>
+            </div>
+            {!profileReady && <div style={{ fontSize: 10, color: '#F4725A' }}>Complete to 40% to enable generation</div>}
+            {profile.brandName && <div style={{ fontSize: 10, color: '#5A554F' }}>{profile.brandName}{profile.category ? ` · ${profile.category}` : ''}</div>}
+          </div>
+
+          {/* Campaign selector */}
+          <CampaignSelector campaigns={campaigns} selectedCampaign={selectedCampaign} onSelect={onSelectCampaign} onNewCampaign={onNewCampaign} loading={loadingCampaigns} />
+
+          {/* Content pillar */}
+          <div className="card" style={{ padding: '10px 12px' }}>
+            <div className="card-title" style={{ fontSize: 10, marginBottom: 8 }}>Content Pillar</div>
+            {['The Ritual','The Source','The Co-Sign','The Occasion'].map(p => (
+              <button key={p} onClick={() => setPillar(p)} style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 4,
+                background: pillar === p ? 'rgba(42,92,74,0.18)' : 'rgba(242,237,228,0.03)',
+                border: `1px solid ${pillar === p ? 'rgba(42,92,74,0.45)' : 'rgba(242,237,228,0.07)'}`,
+                borderRadius: 5, color: pillar === p ? '#6BD4B0' : '#5A554F', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer',
+              }}>{p}</button>
+            ))}
+          </div>
+
+          {/* Platform */}
+          <div className="card" style={{ padding: '10px 12px' }}>
+            <div className="card-title" style={{ fontSize: 10, marginBottom: 8 }}>Platform</div>
+            {['Instagram','TikTok','LinkedIn','Twitter / X','Facebook'].map(p => (
+              <button key={p} onClick={() => setPlatform(p)} style={{
+                display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', marginBottom: 4,
+                background: platform === p ? 'rgba(42,92,74,0.18)' : 'rgba(242,237,228,0.03)',
+                border: `1px solid ${platform === p ? 'rgba(42,92,74,0.45)' : 'rgba(242,237,228,0.07)'}`,
+                borderRadius: 5, color: platform === p ? '#6BD4B0' : '#5A554F', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer',
+              }}>{p}</button>
+            ))}
+          </div>
+
+          {/* Reference image upload */}
+          <div className="card" style={{ padding: '10px 12px' }}>
+            <div className="card-title" style={{ fontSize: 10, marginBottom: 8 }}>Reference Image</div>
+            {refPreview ? (
+              <div style={{ position: 'relative' }}>
+                <img src={refPreview} alt="reference" style={{ width: '100%', borderRadius: 4, display: 'block' }} />
+                {uploadingRef && <div style={{ position: 'absolute', inset: 0, background: 'rgba(10,9,8,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#F2EDE4', borderRadius: 4 }}>Uploading...</div>}
+                <button onClick={() => { setRefPreview(null); setRefR2Key(null) }} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(10,9,8,0.80)', border: 'none', borderRadius: '50%', width: 18, height: 18, color: '#F2EDE4', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              </div>
+            ) : (
+              <>
+                <div onClick={() => fileInputRef.current?.click()} onMouseEnter={e => e.currentTarget.style.borderColor='rgba(242,237,228,0.25)'} onMouseLeave={e => e.currentTarget.style.borderColor='rgba(242,237,228,0.12)'}
+                  style={{ padding: '12px 10px', border: '1px dashed rgba(242,237,228,0.12)', borderRadius: 5, textAlign: 'center', cursor: 'pointer', marginBottom: 6, transition: 'border-color 150ms' }}>
+                  <div style={{ fontSize: 10, color: '#5A554F', lineHeight: 1.6 }}>Upload reference photo<br /><span style={{ color: '#3A3733' }}>Optional — informs style</span></div>
+                </div>
+                <button style={{ width: '100%', padding: '7px 0', background: 'rgba(242,237,228,0.04)', border: '1px solid rgba(242,237,228,0.08)', borderRadius: 5, color: '#5A554F', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer' }}>
+                  Use from Library
+                </button>
+              </>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleRefUpload} />
+          </div>
+
+          {/* Generate Image */}
+          <button onClick={handleGenerate} disabled={!profileReady || generating}
+            title={!profileReady ? 'Complete Brand Profile to 40% to generate' : 'Generate image with Flux Pro via FAL.ai'}
+            style={{ width: '100%', padding: '10px 0', borderRadius: 6, border: 'none', fontFamily: 'DM Sans', fontSize: 12, cursor: !profileReady || generating ? 'default' : 'pointer', background: generating ? 'rgba(42,92,74,0.4)' : profileReady ? '#2A5C4A' : 'rgba(242,237,228,0.05)', color: profileReady ? '#F2EDE4' : '#3A3733', transition: 'background 150ms' }}>
+            {generating ? 'Generating...' : 'Generate Image'}
+          </button>
+
+          {/* Progress bar under generate button */}
+          {(generating || (progress > 0 && progress < 100)) && !genError && (
+            <div style={{ height: 3, background: 'rgba(242,237,228,0.08)', borderRadius: 2, overflow: 'hidden', marginTop: -4 }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#2A5C4A,#6BD4B0)', borderRadius: 2, transition: 'width 400ms ease-out' }} />
+            </div>
+          )}
+
+          {/* Coming Soon — Video */}
+          <button disabled title="Video generation coming in next release"
+            style={{ width: '100%', padding: '10px 0', borderRadius: 6, background: 'rgba(242,237,228,0.02)', border: '1px solid rgba(242,237,228,0.06)', color: '#3A3733', fontFamily: 'DM Sans', fontSize: 11, cursor: 'default' }}>
+            Generate Video — Coming Soon
+          </button>
+
         </div>
-      )}
 
-      <div className="grid-2" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <div className="card-title">Content Pillar</div>
-          {['The Ritual','The Source','The Co-Sign','The Occasion'].map(p => (
-            <button key={p}
-              onClick={() => setPillar(p)}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '9px 12px', marginBottom: 6,
-                background: pillar === p ? 'rgba(42,92,74,0.15)' : 'rgba(242,237,228,0.03)',
-                border: `1px solid ${pillar === p ? 'rgba(42,92,74,0.40)' : 'rgba(242,237,228,0.07)'}`,
-                borderRadius: 6, color: pillar === p ? '#6BD4B0' : '#8C8479',
-                fontFamily: 'DM Sans, sans-serif', fontSize: 12, cursor: 'pointer',
-              }}>
-              {p}
-            </button>
-          ))}
+        {/* ── Right column — output ─────────────────────────────────── */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+
+          {genError && (
+            <div style={{ padding: '10px 14px', background: 'rgba(244,114,90,0.08)', border: '1px solid rgba(244,114,90,0.20)', borderRadius: 8, marginBottom: 16, fontSize: 12, color: '#F4725A' }}>{genError}</div>
+          )}
+
+          {/* Empty state */}
+          {!generatedImage && !generating && !genError && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: 0.35, textAlign: 'center', minHeight: 300 }}>
+              <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="2" y="7" width="36" height="26" rx="3" stroke="#F2EDE4" strokeWidth="1.2"/><circle cx="13" cy="16" r="3.5" stroke="#F2EDE4" strokeWidth="1.2"/><path d="M2 29l9-7 7 6 6-5 14 10" stroke="#F2EDE4" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              <div style={{ fontSize: 12, color: '#F2EDE4', fontFamily: 'DM Sans' }}>Configure settings, then generate your first asset</div>
+              <div style={{ fontSize: 11, color: '#5A554F', maxWidth: 260 }}>Select a content pillar and platform, then click Generate Image</div>
+            </div>
+          )}
+
+          {/* Generating state */}
+          {generating && !generatedImage && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, minHeight: 300 }}>
+              <div style={{ width: '100%', maxWidth: 340, height: 4, background: 'rgba(242,237,228,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#2A5C4A,#6BD4B0)', borderRadius: 2, transition: 'width 400ms ease-out' }} />
+              </div>
+              <div style={{ fontSize: 12, color: '#5A554F' }}>Generating image via Flux Pro — FAL.ai</div>
+              <div style={{ fontSize: 10, color: '#3A3733' }}>Typically 10–30 seconds</div>
+            </div>
+          )}
+
+          {/* Generated output */}
+          {generatedImage && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <img src={generatedImage.url} alt="Generated asset" style={{ width: '100%', maxWidth: 540, borderRadius: 8, display: 'block' }} />
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {actionBtn(savingToLib ? 'Saving...' : savedToLib ? '✓ Saved to Library' : 'Save to Library', handleSaveToLibrary, savingToLib || savedToLib, savedToLib)}
+                {actionBtn('Download', handleDownload)}
+                {actionBtn('Copy Prompt', handleCopyPrompt)}
+                {actionBtn('Generate Variation', () => { setGeneratedImage(null); setSavedToLib(false); setTimeout(handleGenerate, 50) }, generating)}
+              </div>
+
+              <div style={{ padding: '10px 12px', background: 'rgba(242,237,228,0.03)', border: '1px solid rgba(242,237,228,0.07)', borderRadius: 6, fontSize: 10, color: '#5A554F', lineHeight: 1.7 }}>
+                <span style={{ color: '#3A3733' }}>Prompt: </span>{generatedImage.prompt}
+              </div>
+            </div>
+          )}
         </div>
-
-        <div className="card">
-          <div className="card-title">Platform Set</div>
-          {['Instagram','TikTok','LinkedIn','Twitter / X','Facebook'].map(p => (
-            <button key={p}
-              onClick={() => togglePlatform(p)}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '9px 12px', marginBottom: 6,
-                background: platforms.includes(p) ? 'rgba(42,92,74,0.12)' : 'rgba(242,237,228,0.03)',
-                border: `1px solid ${platforms.includes(p) ? 'rgba(42,92,74,0.35)' : 'rgba(242,237,228,0.07)'}`,
-                borderRadius: 6, color: platforms.includes(p) ? '#6BD4B0' : '#8C8479',
-                fontFamily: 'DM Sans, sans-serif', fontSize: 12, cursor: 'pointer',
-              }}>
-              {p}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-title" style={{ marginBottom: 8 }}>Generate Full Asset Package</div>
-        <p style={{ fontSize: 12, color: '#5A554F', marginBottom: 12 }}>
-          Art direction brief, video/Reel concept, caption with hashtag framework, and variation. Everything needed to brief a creative partner.
-        </p>
-        <AIAction
-          actionType="assetPackage"
-          label="Generate Full Asset Package"
-          moduleContext="Brand Partner Toolkit"
-          buildUserInput={() => ({ brand: profile.brandName, pillar, platform: platforms.join(', '), founderDetails: profile })}
-          buildContext={() => ({ profile, pillar, platforms })}
-        />
-      </div>
-
-      <div className="card">
-        <div className="card-title" style={{ marginBottom: 8 }}>Generate Brand Story Assets</div>
-        <p style={{ fontSize: 12, color: '#5A554F', marginBottom: 12 }}>
-          5-part carousel or short video series telling your brand's origin story — built from your own words in your brand profile.
-        </p>
-        <AIAction
-          actionType="brandStory"
-          label="Generate Brand Story"
-          moduleContext="Brand Partner Toolkit"
-          buildUserInput={() => ({ brand: profile.brandName, founderDetails: profile, platform: platforms[0] })}
-          buildContext={() => ({ profile })}
-        />
       </div>
     </div>
   )
