@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import HomeButton from '../../components/HomeButton'
 import UserNotes        from '../../components/UserNotes'
 import GeneratedOutputs from '../../components/GeneratedOutputs'
@@ -9,6 +9,133 @@ import AIAction       from '../../components/AIAction'
 import Greeting       from '../../components/Greeting'
 
 const MODULE_COLOR = '#2A5C4A'
+
+function slugify(str) {
+  return (str || 'default-brand').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'default-brand'
+}
+
+/* ── CampaignModal ───────────────────────────────────────────────────── */
+function CampaignModal({ brandId, onSave, onClose }) {
+  const [form, setForm]   = useState({ name: '', startDate: '', endDate: '', theme: '', toneDirection: '', keyMessages: '' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState(null)
+  const update = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { setError('Campaign name is required'); return }
+    setSaving(true); setError(null)
+    try {
+      const res  = await fetch('/.netlify/functions/campaign-save', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          brandId,
+          name:              form.name,
+          activeDates:       { start: form.startDate, end: form.endDate },
+          theme:             form.theme,
+          toneDirection:     form.toneDirection,
+          keyMessages:       form.keyMessages,
+          referenceAssetKeys: [],
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        onSave({ campaignId: data.campaignId, brandId, name: form.name, activeDates: { start: form.startDate, end: form.endDate }, theme: form.theme, toneDirection: form.toneDirection, keyMessages: form.keyMessages, referenceAssetKeys: [] })
+      } else {
+        setError('Failed to save campaign')
+      }
+    } catch {
+      setError('Network error — check connection')
+    }
+    setSaving(false)
+  }
+
+  const field = (label, key, type = 'input', placeholder = '') => (
+    <div style={{ marginBottom: 14 }}>
+      <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>{label}</label>
+      {type === 'textarea'
+        ? <textarea className="dual-panel__textarea" rows={2} placeholder={placeholder} value={form[key]} onChange={e => update(key, e.target.value)} />
+        : <input className="dual-panel__input" type={type === 'date' ? 'date' : 'text'} placeholder={placeholder} value={form[key]} onChange={e => update(key, e.target.value)} />
+      }
+    </div>
+  )
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,9,8,0.88)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ background: '#181510', border: '1px solid rgba(242,237,228,0.12)', borderRadius: 12, padding: 32, width: 520, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ fontFamily: 'DM Sans', fontSize: 15, fontWeight: 500, color: '#F2EDE4', marginBottom: 6 }}>New Campaign</div>
+        <div style={{ fontSize: 12, color: '#5A554F', marginBottom: 24 }}>Campaign context feeds into every asset generated in this session.</div>
+
+        {field('Campaign Name *', 'name', 'input', 'e.g., Summer Ritual Campaign')}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>Start Date</label>
+            <input className="dual-panel__input" type="date" value={form.startDate} onChange={e => update('startDate', e.target.value)} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>End Date</label>
+            <input className="dual-panel__input" type="date" value={form.endDate} onChange={e => update('endDate', e.target.value)} />
+          </div>
+        </div>
+        {field('Theme & Creative Concept', 'theme', 'textarea', 'What is this campaign about visually and emotionally...')}
+        {field('Tone Direction', 'toneDirection', 'textarea', 'How should this campaign feel — what overrides the base brand tone...')}
+        {field('Key Messages Already in Market', 'keyMessages', 'textarea', 'What messages are already running that new assets should stay consistent with...')}
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>Reference Assets</label>
+          <div style={{ padding: '10px 14px', background: 'rgba(242,237,228,0.03)', border: '1px dashed rgba(242,237,228,0.12)', borderRadius: 6, fontSize: 11, color: '#5A554F', textAlign: 'center' }}>
+            Reference asset upload available in Asset Studio after campaign is created
+          </div>
+        </div>
+
+        {error && <div style={{ color: '#F4725A', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ padding: '8px 18px', background: 'transparent', border: '1px solid rgba(242,237,228,0.14)', borderRadius: 6, color: '#8C8479', fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 20px', background: saving ? 'rgba(42,92,74,0.4)' : '#2A5C4A', border: 'none', borderRadius: 6, color: '#F2EDE4', fontFamily: 'DM Sans', fontSize: 12, cursor: saving ? 'default' : 'pointer' }}>
+            {saving ? 'Saving...' : 'Create Campaign'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── CampaignSelector ───────────────────────────────────────────────── */
+function CampaignSelector({ campaigns, selectedCampaign, onSelect, onNewCampaign, loading }) {
+  return (
+    <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card-title" style={{ marginBottom: 8 }}>Campaign</div>
+      {loading ? (
+        <div style={{ fontSize: 12, color: '#5A554F' }}>Loading campaigns...</div>
+      ) : (
+        <select
+          className="dual-panel__select"
+          value={selectedCampaign?.campaignId || 'none'}
+          onChange={e => {
+            const val = e.target.value
+            if (val === 'new')  { onNewCampaign(); return }
+            if (val === 'none') { onSelect(null); return }
+            onSelect(campaigns.find(c => c.campaignId === val) || null)
+          }}
+        >
+          <option value="new">+ Start new campaign</option>
+          <option value="none">— No campaign (use brand defaults only)</option>
+          {campaigns.map(c => (
+            <option key={c.campaignId} value={c.campaignId}>{c.name}</option>
+          ))}
+        </select>
+      )}
+      {selectedCampaign && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(42,92,74,0.08)', border: '1px solid rgba(42,92,74,0.20)', borderRadius: 6 }}>
+          <div style={{ fontSize: 11, color: '#6BD4B0', fontWeight: 500, marginBottom: 4 }}>{selectedCampaign.name}</div>
+          {selectedCampaign.theme && <div style={{ fontSize: 11, color: '#5A554F', lineHeight: 1.5 }}>{selectedCampaign.theme}</div>}
+          {selectedCampaign.toneDirection && <div style={{ fontSize: 11, color: '#5A554F', marginTop: 4 }}>Tone: {selectedCampaign.toneDirection}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
 
 const SECTIONS = [
   { id: 'profile',      label: 'Brand Profile'          },
@@ -185,7 +312,7 @@ function BrandProfile({ profile, setProfile }) {
 }
 
 /* ── Section 2: Asset Studio ────────────────────────────────────────── */
-function AssetStudio({ profile }) {
+function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, onNewCampaign, loadingCampaigns }) {
   const [pillar, setPillar]     = useState('The Ritual')
   const [platforms, setPlatforms] = useState(['Instagram'])
 
@@ -202,6 +329,14 @@ function AssetStudio({ profile }) {
       <p className="section-subheader">
         Generate platform-ready assets from your brand profile. Select a content pillar and platform set.
       </p>
+
+      <CampaignSelector
+        campaigns={campaigns}
+        selectedCampaign={selectedCampaign}
+        onSelect={onSelectCampaign}
+        onNewCampaign={onNewCampaign}
+        loading={loadingCampaigns}
+      />
 
       {notEnough && (
         <div style={{ padding: '12px 16px', background: 'rgba(244,114,90,0.08)', border: '1px solid rgba(244,114,90,0.20)', borderRadius: 8, marginBottom: 20, fontSize: 12, color: '#F4725A' }}>
@@ -487,6 +622,30 @@ export default function BrandPartnerToolkit() {
   const [leaving, setLeaving] = useState(false)
   const [profile, setProfile] = useState({})
 
+  /* Campaign state */
+  const [campaigns,        setCampaigns]        = useState([])
+  const [selectedCampaign, setSelectedCampaign] = useState(null)
+  const [campaignModal,    setCampaignModal]     = useState(false)
+  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
+
+  const brandId = slugify(profile.brandName)
+
+  /* Fetch campaigns whenever brandName changes */
+  useEffect(() => {
+    if (!profile.brandName) return
+    setLoadingCampaigns(true)
+    fetch(`/.netlify/functions/campaign-list?brandId=${brandId}`)
+      .then(r => r.json())
+      .then(data => { setCampaigns(Array.isArray(data) ? data : []); setLoadingCampaigns(false) })
+      .catch(() => setLoadingCampaigns(false))
+  }, [profile.brandName])
+
+  const handleCampaignSaved = (campaign) => {
+    setCampaigns(prev => [campaign, ...prev])
+    setSelectedCampaign(campaign)
+    setCampaignModal(false)
+  }
+
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 20)
     return () => clearTimeout(t)
@@ -538,11 +697,28 @@ export default function BrandPartnerToolkit() {
           ))}
         </div>
         {section === 'profile'     && <BrandProfile profile={profile} setProfile={setProfile} />}
-        {section === 'studio'      && <AssetStudio profile={profile} />}
+        {section === 'studio'      && (
+          <AssetStudio
+            profile={profile}
+            campaigns={campaigns}
+            selectedCampaign={selectedCampaign}
+            onSelectCampaign={setSelectedCampaign}
+            onNewCampaign={() => setCampaignModal(true)}
+            loadingCampaigns={loadingCampaigns}
+          />
+        )}
         {section === 'calendar'    && <ContentCalendar profile={profile} />}
         {section === 'performance' && <PerformanceIntelligence profile={profile} />}
         {section === 'learning'    && <LearningCenter />}
       </div>
+
+      {campaignModal && (
+        <CampaignModal
+          brandId={brandId}
+          onSave={handleCampaignSaved}
+          onClose={() => setCampaignModal(false)}
+        />
+      )}
     </div>
   )
 }
