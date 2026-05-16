@@ -463,7 +463,7 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
       const b64 = await fileToBase64(file)
       const res = await fetch('/.netlify/functions/asset-upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileBase64: b64, filename: file.name, contentType: file.type, brandId, campaignId: selectedCampaign?.campaignId }),
+        body: JSON.stringify({ fileBase64: b64, filename: file.name, contentType: file.type, brandId, campaignId: selectedCampaign?.campaignId, source: 'upload' }),
       })
       const data = await res.json()
       if (data.key) setRefR2Key(data.key)
@@ -593,7 +593,7 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
       const b64    = await blobToBase64(blob)
       await fetch('/.netlify/functions/asset-upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileBase64: b64, filename: `generated-${Date.now()}.jpg`, contentType: 'image/jpeg', brandId, campaignId: selectedCampaign?.campaignId, caption: caption || undefined }),
+        body: JSON.stringify({ fileBase64: b64, filename: `generated-${Date.now()}.jpg`, contentType: 'image/jpeg', brandId, campaignId: selectedCampaign?.campaignId, caption: caption || undefined, source: 'generated' }),
       })
       setSavedToLib(true)
     } catch {}
@@ -816,10 +816,13 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
 
 /* ── Section 3: Asset Library ────────────────────────────────────────── */
 function AssetLibrary({ profile, campaigns, selectedCampaign, onSelectCampaign }) {
-  const [assets,      setAssets]      = useState([])
-  const [loading,     setLoading]     = useState(false)
-  const [filter,      setFilter]      = useState('all')
-  const [deleting,    setDeleting]    = useState(null)
+  const [assets,        setAssets]        = useState([])
+  const [loading,       setLoading]       = useState(false)
+  const [filter,        setFilter]        = useState('all')
+  const [sourceFilter,  setSourceFilter]  = useState('all') // 'all' | 'generated' | 'upload'
+  const [deleting,      setDeleting]      = useState(null)
+  const [uploading,     setUploading]     = useState(false)
+  const uploadInputRef = useRef(null)
 
   const brandId = slugify(profile.brandName)
 
@@ -847,16 +850,47 @@ function AssetLibrary({ profile, campaigns, selectedCampaign, onSelectCampaign }
     setDeleting(null)
   }
 
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !profile.brandName) return
+    setUploading(true)
+    try {
+      const b64 = await fileToBase64(file)
+      const res = await fetch('/.netlify/functions/asset-upload', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileBase64: b64, filename: file.name, contentType: file.type, brandId, campaignId: selectedCampaign?.campaignId, source: 'upload' }),
+      })
+      const data = await res.json()
+      if (data.key) {
+        setAssets(prev => [{ key: data.key, url: data.url, size: file.size, lastModified: new Date().toISOString(), metadata: { source: 'upload', brandId, campaignId: selectedCampaign?.campaignId } }, ...prev])
+      }
+    } catch {}
+    setUploading(false)
+    e.target.value = ''
+  }
+
   const totalBytes = assets.reduce((s, a) => s + (a.size || 0), 0)
   const fmtSize = b => b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`
   const fmtDate = s => { try { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) } catch { return '' } }
 
+  const visibleAssets = sourceFilter === 'all' ? assets
+    : assets.filter(a => (a.metadata?.source || a.metadata?.Source || '') === sourceFilter)
+
   return (
     <div className="content-area">
-      <p className="section-header" style={{ marginBottom: 6 }}>Asset Library</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+        <p className="section-header" style={{ margin: 0 }}>Asset Library</p>
+        <div>
+          <button onClick={() => uploadInputRef.current?.click()} disabled={uploading || !profile.brandName}
+            style={{ padding: '8px 16px', background: uploading ? 'rgba(42,92,74,0.25)' : '#2A5C4A', border: 'none', borderRadius: 6, color: '#F2EDE4', fontFamily: 'DM Sans', fontSize: 12, cursor: uploading || !profile.brandName ? 'default' : 'pointer' }}>
+            {uploading ? 'Uploading...' : 'Upload Asset'}
+          </button>
+          <input ref={uploadInputRef} type="file" accept="image/*,video/*,.pdf" style={{ display: 'none' }} onChange={handleUpload} />
+        </div>
+      </div>
 
       {/* Storage indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: '10px 14px', background: 'rgba(242,237,228,0.03)', border: '1px solid rgba(242,237,228,0.07)', borderRadius: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, padding: '10px 14px', background: 'rgba(242,237,228,0.03)', border: '1px solid rgba(242,237,228,0.07)', borderRadius: 8 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
             <span style={{ fontSize: 11, color: '#5A554F' }}>Stored assets</span>
@@ -868,17 +902,28 @@ function AssetLibrary({ profile, campaigns, selectedCampaign, onSelectCampaign }
         </div>
       </div>
 
-      {/* Campaign filter */}
-      {campaigns.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
-          {[{ campaignId: 'all', name: 'All Assets' }, ...campaigns].map(c => (
-            <button key={c.campaignId} onClick={() => setFilter(c.campaignId)}
-              style={{ padding: '5px 12px', background: filter === c.campaignId ? 'rgba(42,92,74,0.18)' : 'rgba(242,237,228,0.04)', border: `1px solid ${filter === c.campaignId ? 'rgba(42,92,74,0.45)' : 'rgba(242,237,228,0.08)'}`, borderRadius: 5, color: filter === c.campaignId ? '#6BD4B0' : '#5A554F', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer' }}>
-              {c.name}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Filters row */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        {/* Source filter */}
+        {[{ id: 'all', label: 'All Assets' }, { id: 'generated', label: 'Generated' }, { id: 'upload', label: 'Uploads' }].map(s => (
+          <button key={s.id} onClick={() => setSourceFilter(s.id)}
+            style={{ padding: '5px 12px', background: sourceFilter === s.id ? 'rgba(42,92,74,0.18)' : 'rgba(242,237,228,0.04)', border: `1px solid ${sourceFilter === s.id ? 'rgba(42,92,74,0.45)' : 'rgba(242,237,228,0.08)'}`, borderRadius: 5, color: sourceFilter === s.id ? '#6BD4B0' : '#5A554F', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer' }}>
+            {s.label}
+          </button>
+        ))}
+        {/* Campaign filter */}
+        {campaigns.length > 0 && (
+          <>
+            <div style={{ width: 1, background: 'rgba(242,237,228,0.08)', margin: '2px 4px' }} />
+            {[{ campaignId: 'all', name: 'All Campaigns' }, ...campaigns].map(c => (
+              <button key={c.campaignId} onClick={() => setFilter(c.campaignId)}
+                style={{ padding: '5px 12px', background: filter === c.campaignId ? 'rgba(42,92,74,0.12)' : 'rgba(242,237,228,0.03)', border: `1px solid ${filter === c.campaignId ? 'rgba(42,92,74,0.30)' : 'rgba(242,237,228,0.06)'}`, borderRadius: 5, color: filter === c.campaignId ? '#4A9C7A' : '#3A3733', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer' }}>
+                {c.name}
+              </button>
+            ))}
+          </>
+        )}
+      </div>
 
       {!profile.brandName ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A554F', fontSize: 12 }}>
@@ -886,14 +931,14 @@ function AssetLibrary({ profile, campaigns, selectedCampaign, onSelectCampaign }
         </div>
       ) : loading ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A554F', fontSize: 12 }}>Loading assets...</div>
-      ) : assets.length === 0 ? (
+      ) : visibleAssets.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px' }}>
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ opacity: 0.25, marginBottom: 12 }}><rect x="2" y="7" width="36" height="26" rx="3" stroke="#F2EDE4" strokeWidth="1.2"/><circle cx="13" cy="16" r="3.5" stroke="#F2EDE4" strokeWidth="1.2"/><path d="M2 29l9-7 7 6 6-5 14 10" stroke="#F2EDE4" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <div style={{ fontSize: 12, color: '#5A554F' }}>No assets yet. Generate and save images from Asset Studio.</div>
+          <div style={{ fontSize: 12, color: '#5A554F' }}>{assets.length > 0 ? 'No assets match this filter.' : 'No assets yet. Generate and save images from Asset Studio, or upload directly.'}</div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
-          {assets.map(asset => (
+          {visibleAssets.map(asset => (
             <div key={asset.key} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(242,237,228,0.08)', background: 'rgba(242,237,228,0.02)' }}>
               <div style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', background: '#0E0D0B' }}>
                 <img src={asset.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}

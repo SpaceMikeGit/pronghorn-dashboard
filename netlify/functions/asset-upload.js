@@ -31,7 +31,7 @@ exports.handler = async function (event) {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Invalid JSON body' }) }
   }
 
-  const { fileBase64, filename, contentType, brandId, campaignId, caption } = body
+  const { fileBase64, filename, contentType, brandId, campaignId, caption, source } = body
   if (!fileBase64 || !filename || !contentType || !brandId) {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'fileBase64, filename, contentType, and brandId are required' }) }
   }
@@ -43,6 +43,7 @@ exports.handler = async function (event) {
   const metadata = { brandId }
   if (campaignId) metadata.campaignId = campaignId
   if (caption)    metadata.caption    = caption.slice(0, 1024)
+  if (source)     metadata.source     = source
 
   try {
     await r2Client().send(new PutObjectCommand({

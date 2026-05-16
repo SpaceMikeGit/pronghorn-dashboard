@@ -113,31 +113,11 @@ exports.handler = async function (event) {
 
   const { request_id: requestId } = await submitRes.json()
 
-  // Poll loop until done or deadline
-  const deadline = Date.now() + POLL_DEADLINE
-  while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL)
-    const result = await getResult(requestId)
-    if (result.error) {
-      return { statusCode: 502, headers: cors, body: JSON.stringify(result) }
-    }
-    if (result.done) {
-      return {
-        statusCode: 200,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: result.imageUrl, requestId }),
-      }
-    }
-  }
-
-  // Deadline reached — client can poll via GET ?requestId=xxx
+  // Return immediately — Netlify free plan has a 10-second function timeout
+  // which is shorter than FAL generation time. Client polls via GET ?requestId=xxx
   return {
     statusCode: 202,
     headers: { ...cors, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      pending:   true,
-      requestId,
-      message:   'Still generating. Poll GET /.netlify/functions/generate-image?requestId=' + requestId,
-    }),
+    body: JSON.stringify({ pending: true, requestId }),
   }
 }
