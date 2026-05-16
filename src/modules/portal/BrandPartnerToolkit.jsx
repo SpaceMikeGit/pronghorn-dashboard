@@ -490,17 +490,20 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
     startProgress()
     const prompt = buildPrompt()
     try {
-      const res  = await fetch('/.netlify/functions/generate-image', {
+      const res = await fetch('/.netlify/functions/generate-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt, width: 1024, height: 1024, brandId, campaignId: selectedCampaign?.campaignId }),
       })
-      const data = await res.json()
+      let data
+      try { data = await res.json() } catch {
+        throw new Error(`Server returned no response (HTTP ${res.status}) — function may have timed out. Try again.`)
+      }
       if (res.status === 200 && data.imageUrl) {
         stopProgress(100); setGeneratedImage({ url: data.imageUrl, prompt, requestId: data.requestId })
       } else if (res.status === 202 && data.requestId) {
         await pollForImage(data.requestId, prompt)
       } else {
-        throw new Error(data.error || 'Generation failed')
+        throw new Error(data.error || `Unexpected response (HTTP ${res.status})`)
       }
     } catch (err) { stopProgress(0); setGenError(err.message) }
     setGenerating(false)
