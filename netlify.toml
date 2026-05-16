@@ -1,0 +1,17 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[functions]
+  directory = "netlify/functions"
+
+[functions."generate-image"]
+  timeout = 60
+
+[functions."generate-video"]
+  timeout = 180
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

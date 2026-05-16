@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(find \"/c/Users/mikem/Downloads/Work/Mike Work/Claude Stuff/Career & Pronghorn/\" -name \"*.webp\" -o -name \"pronghorn_bg.jpg\" 2>/dev/null)",
+      "Bash(cp \"/c/Users/mikem/Downloads/Work/Mike Work/Claude Stuff/Career & Pronghorn/Edmond's Honor/bottle_with_glass.webp\" \"/c/Users/mikem/Downloads/Work/Mike Work/Claude Stuff/Career & Pronghorn/Pronghorn_Dashboard/public/\" && echo \"bottle_with_glass.webp ✓\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(cmd.exe /c \"mkdir C:\\\\dev 2>nul & mklink /J C:\\\\dev\\\\pronghorn \\\\\"C:\\\\Users\\\\mikem\\\\Downloads\\\\Work\\\\Mike Work\\\\Claude Stuff\\\\Career & Pronghorn\\\\Pronghorn_Dashboard\\\\\"\")",
+      "Bash(ls /c/dev/pronghorn/src/ && node --version)",
+      "Read(//c//**)",
+      "Bash(cmd.exe /c \"dir C:\\\\dev\\\\\" 2>&1)",
+      "Bash(cmd.exe /c \"dir C:\\\\dev\")",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "mcp__Claude_in_Chrome__read_console_messages",
+      "Bash(npm run *)",
+      "Bash(npm create *)",
+      "Bash(node -e \"const p = require\\('./node_modules/tailwindcss/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(mkdir \"C:\\\\Users\\\\mikem\\\\Downloads\\\\Work\\\\Mike Work\\\\Claude Stuff\\\\Leder\\\\Leder_Prototype\\\\.claude\" 2>&1; echo done)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174)",
+      "Bash(python scripts/office/unpack.py \"C:\\\\Users\\\\mikem\\\\Downloads\\\\Work\\\\Mike Work\\\\Claude Stuff\\\\Career & Pronghorn\\\\Pronghorn_Portal_Build_Brief.docx\" /tmp/brief_unpacked)",
+      "Bash(extract-text \"C:\\\\Users\\\\mikem\\\\Downloads\\\\Work\\\\Mike Work\\\\Claude Stuff\\\\Career & Pronghorn\\\\Pronghorn_Dashboard\\\\Pronghorn_Suite_Claude_Code_Build_Brief.docx\")",
+      "Bash(powershell -Command ' *)",
+      "Bash(npx vite *)",
+      "Bash(node node_modules/vite/bin/vite.js build)",
+      "Bash(for f *)",
+      "Bash(pandoc \"C:\\\\Users\\\\mikem\\\\Downloads\\\\Work\\\\Mike Work\\\\Claude Stuff\\\\Career & Pronghorn\\\\Pronghorn_Suite_Patch_Brief_v1_3.docx\" -t markdown)",
+      "Bash(where python3.exe)",
+      "Bash(where py.exe)",
+      "Read(//usr/**)",
+      "Bash(cd /tmp)",
+      "Bash(unzip -o \"C:/Users/mikem/Downloads/Work/Mike Work/Claude Stuff/Career & Pronghorn/Pronghorn_Suite_Patch_Brief_v1_3.docx\" -d brief_v13)",
+      "Bash(Pronghorn\\\\Pronghorn_Dashboard\\\\netlify.toml\")",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

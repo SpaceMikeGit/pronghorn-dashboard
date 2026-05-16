@@ -1,0 +1,249 @@
+/* ── Portal shell ───────────────────────────────────────────────────── */
+.portal {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0A0908;
+}
+
+.portal--leaving {
+  animation: portal-slide-out 380ms ease-in-out forwards;
+}
+
+@keyframes portal-slide-out {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-48px); opacity: 0; }
+}
+
+/* ── Background (same as dashboard) ────────────────────────────────── */
+.portal__bg {
+  position: absolute;
+  inset: -24px;
+  background-image: url('/pronghorn_bg.jpg');
+  background-size: cover;
+  background-position: center 30%;
+  opacity: 0.35;
+  z-index: 0;
+}
+
+.portal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 9, 8, 0.55);
+  z-index: 1;
+}
+
+/* ── Content layer ──────────────────────────────────────────────────── */
+.portal__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 0 40px;
+  /* Push header to ~30-35% from top */
+  padding-top: calc(30vh - 80px);
+  gap: 0;
+}
+
+/* ── Suite header ───────────────────────────────────────────────────── */
+.portal__header {
+  text-align: center;
+  margin-bottom: 64px;
+}
+
+.portal-greeting {
+  margin-bottom: 36px;
+}
+
+.portal__suite-name {
+  font-family: 'DM Sans', sans-serif;
+  font-size: clamp(22px, 3vw, 36px);
+  font-weight: 500;
+  color: #F2EDE4;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+  line-height: 1.1;
+}
+
+.portal__tagline {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  color: rgba(242, 237, 228, 0.65);
+  letter-spacing: 0.16em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* ── Cards row ──────────────────────────────────────────────────────── */
+.portal__cards {
+  display: flex;
+  gap: 20px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+/* ── Individual card ────────────────────────────────────────────────── */
+.portal-card {
+  position: relative;
+  width: 160px;
+  height: 200px;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 12px;
+  transform: scale(1);
+  transition: transform 200ms ease-in-out;
+}
+
+.portal-card--hovered {
+  transform: scale(1.045);
+}
+
+.portal-card--locked {
+  cursor: default;
+}
+
+/* ── SVG border (base white + color trace) ──────────────────────────── */
+.portal-card__border {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* White base border — always visible */
+.portal-card__border-rect {
+  opacity: 0.35;
+}
+
+/* Color trace — SVG stroke-dashoffset animation */
+.portal-card__border-trace {
+  /* Perimeter of 158×198 rect with rx=11:
+     approx = 2*(158+198) - (4*(2*11 - PI*11)) ≈ 708px */
+  stroke-dasharray: 720;
+  stroke-dashoffset: 720;
+  opacity: 0;
+  transition:
+    stroke-dashoffset 420ms ease-in-out,
+    opacity 60ms ease-in-out;
+}
+
+.portal-card--hovered .portal-card__border-trace {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+
+/* ── Color wash interior ────────────────────────────────────────────── */
+.portal-card__wash {
+  position: absolute;
+  inset: 2px;
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 300ms ease-in-out;
+  z-index: 1;
+}
+
+.portal-card--hovered .portal-card__wash {
+  opacity: 0.10;
+}
+
+/* ── Card content ───────────────────────────────────────────────────── */
+.portal-card__content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 12px;
+}
+
+.portal-card__logomark {
+  width: 44px;
+  height: auto;
+  display: block;
+  opacity: 0.90;
+}
+
+.portal-card__num {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(242, 237, 228, 0.50);
+  letter-spacing: 0.12em;
+  line-height: 1;
+}
+
+.portal-card__name {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(242, 237, 228, 0.85);
+  letter-spacing: 0.04em;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ── Locked overlay ─────────────────────────────────────────────────── */
+.portal-card__locked {
+  position: absolute;
+  inset: 2px;
+  border-radius: 10px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 280ms ease-in-out;
+  /* Diagonal stripe texture */
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(10, 9, 8, 0.72) 0px,
+      rgba(10, 9, 8, 0.72) 4px,
+      rgba(20, 18, 16, 0.60) 4px,
+      rgba(20, 18, 16, 0.60) 8px
+    );
+}
+
+.portal-card--hovered .portal-card__locked {
+  opacity: 1;
+}
+
+.portal-card__locked-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(242, 237, 228, 0.75);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+/* ── Lock icon shake animation ──────────────────────────────────────── */
+.portal-card__locked--shake {
+  animation: lock-shake 480ms ease-in-out;
+}
+
+@keyframes lock-shake {
+  0%,100% { transform: translateX(0); }
+  15%     { transform: translateX(-4px); }
+  30%     { transform: translateX(4px); }
+  45%     { transform: translateX(-3px); }
+  60%     { transform: translateX(3px); }
+  75%     { transform: translateX(-1px); }
+  90%     { transform: translateX(1px); }
+}
