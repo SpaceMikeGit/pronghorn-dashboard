@@ -10,7 +10,7 @@
 //
 // API keys never leave this function — never in the browser bundle.
 
-const fetch = (...args) => import('node-fetch').then(m => m.default(...args))
+// Use native fetch (Node 18+ on Netlify) — avoids ESM/CJS interop issues with node-fetch v3
 
 const FLUX_ENDPOINT = 'https://api.bfl.ml/v1/flux-pro'
 const FLUX_POLL     = 'https://api.bfl.ml/v1/get_result'
