@@ -98,7 +98,12 @@ exports.handler = async function (event) {
       body: JSON.stringify({ prompt, width, height }),
     })
   } catch (err) {
-    return { statusCode: 502, headers: cors, body: JSON.stringify({ error: 'Failed to reach Flux API', detail: err.message }) }
+    return { statusCode: 502, headers: cors, body: JSON.stringify({
+      error: 'Failed to reach Flux API',
+      detail: err.message,
+      cause: err.cause?.message ?? err.cause ?? null,
+      code:  err.cause?.code ?? null,
+    }) }
   }
 
   if (!submitRes.ok) {
