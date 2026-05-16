@@ -38,14 +38,15 @@ function CampaignModal({ brandId, onSave, onClose }) {
           referenceAssetKeys: [],
         }),
       })
-      const data = await res.json()
+      let data
+      try { data = await res.json() } catch { data = {} }
       if (data.success) {
         onSave({ campaignId: data.campaignId, brandId, name: form.name, activeDates: { start: form.startDate, end: form.endDate }, theme: form.theme, toneDirection: form.toneDirection, keyMessages: form.keyMessages, referenceAssetKeys: [] })
       } else {
-        setError('Failed to save campaign')
+        setError(data.error || `Server error (${res.status}) — check Netlify function logs`)
       }
-    } catch {
-      setError('Network error — check connection')
+    } catch (err) {
+      setError(`Network error — ${err.message}`)
     }
     setSaving(false)
   }
@@ -305,6 +306,42 @@ function BrandProfile({ profile, setProfile }) {
               placeholder="e.g., Total Wine, BevMo, Target..."
               value={profile.retailAuth || ''}
               onChange={e => update('retailAuth', e.target.value)} />
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">Voice & Tone</div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>Brand Voice & Tone</label>
+            <textarea className="dual-panel__textarea" rows={3}
+              placeholder="How does this brand sound? e.g., Warm but authoritative. Never ironic. Speaks to ritual, not hype..."
+              value={profile.voiceTone || ''}
+              onChange={e => update('voiceTone', e.target.value)} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>Best Existing Asset</label>
+            <textarea className="dual-panel__textarea" rows={2}
+              placeholder="Describe the one piece of content that best represents the brand — what made it work..."
+              value={profile.bestAsset || ''}
+              onChange={e => update('bestAsset', e.target.value)} />
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">Digital Presence</div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>Website URL</label>
+            <input className="dual-panel__input"
+              placeholder="e.g., https://bayabgin.com"
+              value={profile.websiteUrl || ''}
+              onChange={e => update('websiteUrl', e.target.value)} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: '#5A554F', marginBottom: 4 }}>Social Handles</label>
+            <input className="dual-panel__input"
+              placeholder="e.g., @bayabgin on IG, TikTok: @bayabgin"
+              value={profile.socialHandles || ''}
+              onChange={e => update('socialHandles', e.target.value)} />
           </div>
         </div>
       </div>
