@@ -376,9 +376,12 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
   const [genError,      setGenError]      = useState(null)
   const [savingToLib,   setSavingToLib]   = useState(false)
   const [savedToLib,    setSavedToLib]    = useState(false)
-  const [showPicker,    setShowPicker]    = useState(false)
-  const [pickerAssets,  setPickerAssets]  = useState([])
-  const [loadingPicker, setLoadingPicker] = useState(false)
+  const [showPicker,        setShowPicker]        = useState(false)
+  const [pickerAssets,      setPickerAssets]      = useState([])
+  const [loadingPicker,     setLoadingPicker]     = useState(false)
+  const [caption,           setCaption]           = useState(null)
+  const [generatingCaption, setGeneratingCaption] = useState(false)
+  const [captionError,      setCaptionError]      = useState(null)
   const fileInputRef = useRef(null)
   const progressRef  = useRef(null)
 
@@ -438,7 +441,7 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
 
   const handleGenerate = async () => {
     if (!profileReady || generating) return
-    setGenerating(true); setGenError(null); setSavedToLib(false); setGeneratedImage(null)
+    setGenerating(true); setGenError(null); setSavedToLib(false); setGeneratedImage(null); setCaption(null); setCaptionError(null)
     startProgress()
     const prompt = buildPrompt()
     try {
@@ -468,6 +471,63 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
     if (generatedImage?.prompt) navigator.clipboard.writeText(generatedImage.prompt).catch(() => {})
   }
 
+  const handleGenerateCaption = async () => {
+    if (!generatedImage || generatingCaption) return
+    setGeneratingCaption(true); setCaptionError(null)
+    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
+    if (!apiKey) { setCaptionError('VITE_ANTHROPIC_API_KEY not configured'); setGeneratingCaption(false); return }
+
+    const pillarDesc = {
+      'The Ritual':  'product in context — how it fits into moments, serves, and occasions',
+      'The Source':  'provenance and heritage — what makes this spirit distinctive at origin',
+      'The Co-Sign': 'social proof — bartenders, media, community advocates',
+      'The Occasion':'moment-based content — events, seasons, cultural moments',
+    }[pillar] || pillar
+
+    const promptLines = [
+      `Write a social media caption for ${platform} for ${profile.brandName}${profile.category ? `, a ${profile.category} brand` : ''}.`,
+      '',
+      `Content pillar: ${pillar} — ${pillarDesc}`,
+      selectedCampaign              ? `Active campaign: ${selectedCampaign.name}` : null,
+      selectedCampaign?.theme       ? `Campaign theme: ${selectedCampaign.theme}` : null,
+      selectedCampaign?.toneDirection ? `Tone direction: ${selectedCampaign.toneDirection}` : null,
+      selectedCampaign?.keyMessages   ? `Key messages already in market: ${selectedCampaign.keyMessages}` : null,
+      profile.targetAudience        ? `Target audience: ${profile.targetAudience}` : null,
+      profile.signatureServe        ? `Signature serve: ${profile.signatureServe}` : null,
+      profile.voiceTone             ? `Brand voice: ${profile.voiceTone}` : null,
+      '',
+      `The image was generated with this prompt: ${generatedImage.prompt}`,
+      '',
+      `Write one caption for this image. ${['Instagram','TikTok','Facebook'].includes(platform) ? 'Include 3–5 relevant hashtags at the end.' : 'No hashtags.'} Keep it authentic — no generic spirits marketing language. Respond with the caption text only, no preamble.`,
+    ].filter(l => l !== null).join('\n')
+
+    try {
+      const res  = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key':                            apiKey,
+          'anthropic-version':                    '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type':                         'application/json',
+        },
+        body: JSON.stringify({
+          model:      'claude-haiku-4-5-20251001',
+          max_tokens: 300,
+          messages:   [{ role: 'user', content: promptLines }],
+        }),
+      })
+      const data = await res.json()
+      if (data.content?.[0]?.text) {
+        setCaption(data.content[0].text.trim())
+      } else {
+        setCaptionError(data.error?.message || 'Caption generation failed')
+      }
+    } catch (err) {
+      setCaptionError(err.message)
+    }
+    setGeneratingCaption(false)
+  }
+
   const openPicker = async () => {
     setShowPicker(true)
     setLoadingPicker(true)
@@ -488,7 +548,7 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
       const b64    = await blobToBase64(blob)
       await fetch('/.netlify/functions/asset-upload', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileBase64: b64, filename: `generated-${Date.now()}.jpg`, contentType: 'image/jpeg', brandId, campaignId: selectedCampaign?.campaignId }),
+        body: JSON.stringify({ fileBase64: b64, filename: `generated-${Date.now()}.jpg`, contentType: 'image/jpeg', brandId, campaignId: selectedCampaign?.campaignId, caption: caption || undefined }),
       })
       setSavedToLib(true)
     } catch {}
@@ -644,12 +704,30 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
                 {actionBtn(savingToLib ? 'Saving...' : savedToLib ? '✓ Saved to Library' : 'Save to Library', handleSaveToLibrary, savingToLib || savedToLib, savedToLib)}
                 {actionBtn('Download', handleDownload)}
                 {actionBtn('Copy Prompt', handleCopyPrompt)}
-                {actionBtn('Generate Variation', () => { setGeneratedImage(null); setSavedToLib(false); setTimeout(handleGenerate, 50) }, generating)}
+                {actionBtn(generatingCaption ? 'Writing...' : caption ? 'Regenerate Caption' : 'Generate Caption', handleGenerateCaption, generatingCaption)}
+                {actionBtn('Generate Variation', () => { setGeneratedImage(null); setSavedToLib(false); setCaption(null); setTimeout(handleGenerate, 50) }, generating)}
               </div>
 
               <div style={{ padding: '10px 12px', background: 'rgba(242,237,228,0.03)', border: '1px solid rgba(242,237,228,0.07)', borderRadius: 6, fontSize: 10, color: '#5A554F', lineHeight: 1.7 }}>
                 <span style={{ color: '#3A3733' }}>Prompt: </span>{generatedImage.prompt}
               </div>
+
+              {captionError && (
+                <div style={{ padding: '8px 12px', background: 'rgba(244,114,90,0.08)', border: '1px solid rgba(244,114,90,0.20)', borderRadius: 6, fontSize: 11, color: '#F4725A' }}>{captionError}</div>
+              )}
+
+              {caption && (
+                <div style={{ padding: '14px 16px', background: 'rgba(42,92,74,0.07)', border: '1px solid rgba(42,92,74,0.22)', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, color: '#6BD4B0', fontWeight: 500, letterSpacing: '0.05em' }}>CAPTION</span>
+                    <button onClick={() => navigator.clipboard.writeText(caption).catch(() => {})}
+                      style={{ padding: '4px 10px', background: 'transparent', border: '1px solid rgba(107,212,176,0.25)', borderRadius: 4, color: '#6BD4B0', fontFamily: 'DM Sans', fontSize: 10, cursor: 'pointer' }}>
+                      Copy
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 13, color: '#F2EDE4', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{caption}</div>
+                </div>
+              )}
             </div>
           )}
         </div>
