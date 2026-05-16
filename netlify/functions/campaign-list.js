@@ -1,4 +1,4 @@
-// campaign-list.js — List all campaigns for a brand from Cloudflare R2
+// campaign-list.js - List all campaigns for a brand from Cloudflare R2
 // GET ?brandId=xxx
 // Returns array of parsed campaign records, sorted: active first, then most recent start date
 
@@ -35,7 +35,7 @@ exports.handler = async function (event) {
   if (!brandId) return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'brandId is required' }) }
 
   const client = r2Client()
-  const prefix = `brands/${brandId}/campaigns/`
+  const prefix = 'brands/' + brandId + '/campaigns/'
 
   let objects = []
   let continuationToken = undefined
@@ -54,26 +54,24 @@ exports.handler = async function (event) {
     return { statusCode: 502, headers: cors, body: JSON.stringify({ error: 'R2 list failed', detail: err.message }) }
   }
 
-  // Parse each campaign JSON file
-  const campaigns = await Promise.all(objects.map(async (obj) => {
+  const campaigns = await Promise.all(objects.map(async function (obj) {
     try {
       const res  = await client.send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: obj.Key }))
       const text = await streamToString(res.Body)
       return JSON.parse(text)
-    } catch {
+    } catch (e) {
       return null
     }
   }))
 
   const valid = campaigns.filter(Boolean)
 
-  // Sort: active campaigns first (start date <= today <= end date), then by most recent start date
   const now = new Date()
-  valid.sort((a, b) => {
-    const aStart = a.activeDates?.start ? new Date(a.activeDates.start) : null
-    const aEnd   = a.activeDates?.end   ? new Date(a.activeDates.end)   : null
-    const bStart = b.activeDates?.start ? new Date(b.activeDates.start) : null
-    const bEnd   = b.activeDates?.end   ? new Date(b.activeDates.end)   : null
+  valid.sort(function (a, b) {
+    const aStart  = a.activeDates && a.activeDates.start ? new Date(a.activeDates.start) : null
+    const aEnd    = a.activeDates && a.activeDates.end   ? new Date(a.activeDates.end)   : null
+    const bStart  = b.activeDates && b.activeDates.start ? new Date(b.activeDates.start) : null
+    const bEnd    = b.activeDates && b.activeDates.end   ? new Date(b.activeDates.end)   : null
     const aActive = aStart && aEnd ? aStart <= now && now <= aEnd : false
     const bActive = bStart && bEnd ? bStart <= now && now <= bEnd : false
     if (aActive !== bActive) return bActive ? 1 : -1

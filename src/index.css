@@ -1135,7 +1135,7 @@ body {
   border-color: rgba(244,114,90,0.40);
 }
 .onboarding-input::placeholder,
-.onboarding-textarea::placeholder { color: #3A3733; }
+.onboarding-textarea::placeholder { color: #6A6460; }
 
 .onboarding-question {
   font-size: 18px;
@@ -1358,7 +1358,7 @@ body {
 .dual-panel__select:focus,
 .dual-panel__textarea:focus { border-color: rgba(244,114,90,0.35); }
 .dual-panel__input::placeholder,
-.dual-panel__textarea::placeholder { color: #3A3733; }
+.dual-panel__textarea::placeholder { color: #6A6460; }
 
 /* ─────────────────────────────────────────────────────────────────────
    DEAL SCREENING FORM
@@ -1407,7 +1407,7 @@ body {
 .screening-form__select:focus,
 .screening-form__textarea:focus { border-color: rgba(244,114,90,0.35); }
 .screening-form__input::placeholder,
-.screening-form__textarea::placeholder { color: #3A3733; }
+.screening-form__textarea::placeholder { color: #6A6460; }
 .screening-form__completeness {
   font-size: 11px;
   color: #F4725A;
@@ -1478,7 +1478,7 @@ body {
   outline: none;
   border-color: rgba(242,237,228,0.20);
 }
-.user-notes__textarea::placeholder { color: #3A3733; }
+.user-notes__textarea::placeholder { color: #6A6460; }
 
 .user-notes__clear {
   margin-top: 5px;

@@ -1,4 +1,4 @@
-// campaign-save.js — Save campaign record to Cloudflare R2
+// campaign-save.js - Save campaign record to Cloudflare R2
 // POST { brandId, campaignId, name, activeDates, theme, toneDirection, keyMessages, referenceAssetKeys }
 // Saves to brands/{brandId}/campaigns/{campaignId}.json
 // Returns { success: true, campaignId }
@@ -27,7 +27,7 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: cors, body: JSON.stringify({ error: 'Method not allowed' }) }
 
   let body
-  try { body = JSON.parse(event.body) } catch {
+  try { body = JSON.parse(event.body) } catch (e) {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'Invalid JSON body' }) }
   }
 
@@ -36,9 +36,9 @@ exports.handler = async function (event) {
     return { statusCode: 400, headers: cors, body: JSON.stringify({ error: 'brandId and name are required' }) }
   }
 
-  const id      = campaignId || `campaign-${Date.now()}`
-  const record  = { campaignId: id, brandId, name, activeDates, theme, toneDirection, keyMessages, referenceAssetKeys, updatedAt: new Date().toISOString() }
-  const key     = `brands/${brandId}/campaigns/${id}.json`
+  const id     = campaignId || ('campaign-' + Date.now())
+  const record = { campaignId: id, brandId, name, activeDates, theme, toneDirection, keyMessages, referenceAssetKeys, updatedAt: new Date().toISOString() }
+  const key    = 'brands/' + brandId + '/campaigns/' + id + '.json'
 
   try {
     await r2Client().send(new PutObjectCommand({
