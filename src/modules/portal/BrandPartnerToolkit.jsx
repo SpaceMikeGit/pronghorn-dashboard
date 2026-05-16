@@ -138,11 +138,12 @@ function CampaignSelector({ campaigns, selectedCampaign, onSelect, onNewCampaign
 }
 
 const SECTIONS = [
-  { id: 'profile',      label: 'Brand Profile'          },
-  { id: 'studio',       label: 'Asset Studio'           },
-  { id: 'calendar',     label: 'Content Calendar'       },
-  { id: 'performance',  label: 'Performance Intelligence'},
-  { id: 'learning',     label: 'Learning Center'        },
+  { id: 'profile',     label: 'Brand Profile'           },
+  { id: 'studio',      label: 'Asset Studio'            },
+  { id: 'library',     label: 'Asset Library'           },
+  { id: 'calendar',    label: 'Content Calendar'        },
+  { id: 'performance', label: 'Performance Intelligence' },
+  { id: 'learning',    label: 'Learning Center'         },
 ]
 
 /* ── Brand Profile completeness calculation ─────────────────────────── */
@@ -375,6 +376,9 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
   const [genError,      setGenError]      = useState(null)
   const [savingToLib,   setSavingToLib]   = useState(false)
   const [savedToLib,    setSavedToLib]    = useState(false)
+  const [showPicker,    setShowPicker]    = useState(false)
+  const [pickerAssets,  setPickerAssets]  = useState([])
+  const [loadingPicker, setLoadingPicker] = useState(false)
   const fileInputRef = useRef(null)
   const progressRef  = useRef(null)
 
@@ -462,6 +466,17 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
 
   const handleCopyPrompt = () => {
     if (generatedImage?.prompt) navigator.clipboard.writeText(generatedImage.prompt).catch(() => {})
+  }
+
+  const openPicker = async () => {
+    setShowPicker(true)
+    setLoadingPicker(true)
+    try {
+      const res  = await fetch(`/.netlify/functions/asset-list?brandId=${brandId}`)
+      const data = await res.json()
+      setPickerAssets(Array.isArray(data) ? data : [])
+    } catch {}
+    setLoadingPicker(false)
   }
 
   const handleSaveToLibrary = async () => {
@@ -563,7 +578,7 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
                   style={{ padding: '12px 10px', border: '1px dashed rgba(242,237,228,0.12)', borderRadius: 5, textAlign: 'center', cursor: 'pointer', marginBottom: 6, transition: 'border-color 150ms' }}>
                   <div style={{ fontSize: 10, color: '#5A554F', lineHeight: 1.6 }}>Upload reference photo<br /><span style={{ color: '#3A3733' }}>Optional — informs style</span></div>
                 </div>
-                <button style={{ width: '100%', padding: '7px 0', background: 'rgba(242,237,228,0.04)', border: '1px solid rgba(242,237,228,0.08)', borderRadius: 5, color: '#5A554F', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer' }}>
+                <button onClick={openPicker} style={{ width: '100%', padding: '7px 0', background: 'rgba(242,237,228,0.04)', border: '1px solid rgba(242,237,228,0.08)', borderRadius: 5, color: '#8C8479', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer' }}>
                   Use from Library
                 </button>
               </>
@@ -639,11 +654,151 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
           )}
         </div>
       </div>
+
+      {/* ── Library Picker Modal ─────────────────────────────────── */}
+      {showPicker && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,9,8,0.88)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ background: '#181510', border: '1px solid rgba(242,237,228,0.12)', borderRadius: 12, padding: 28, width: 680, maxWidth: '100%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <div style={{ fontFamily: 'DM Sans', fontSize: 14, fontWeight: 500, color: '#F2EDE4' }}>Select from Library</div>
+              <button onClick={() => setShowPicker(false)} style={{ background: 'none', border: 'none', color: '#5A554F', fontSize: 18, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }}>×</button>
+            </div>
+            {loadingPicker ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#5A554F', fontSize: 12 }}>Loading assets...</div>
+            ) : pickerAssets.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#5A554F', fontSize: 12 }}>No assets in library yet. Save generated images first.</div>
+            ) : (
+              <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                {pickerAssets.map(asset => (
+                  <div key={asset.key} onClick={() => { setRefPreview(asset.url); setRefR2Key(asset.key); setShowPicker(false) }}
+                    style={{ cursor: 'pointer', borderRadius: 6, overflow: 'hidden', border: '1px solid rgba(242,237,228,0.08)', transition: 'border-color 150ms' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(107,212,176,0.40)'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(242,237,228,0.08)'}>
+                    <img src={asset.url} alt="" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ padding: '6px 8px', background: 'rgba(242,237,228,0.03)' }}>
+                      <div style={{ fontSize: 10, color: '#5A554F', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {asset.key.split('/').pop()}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-/* ── Section 3: Content Calendar ────────────────────────────────────── */
+/* ── Section 3: Asset Library ────────────────────────────────────────── */
+function AssetLibrary({ profile, campaigns, selectedCampaign, onSelectCampaign }) {
+  const [assets,      setAssets]      = useState([])
+  const [loading,     setLoading]     = useState(false)
+  const [filter,      setFilter]      = useState('all')
+  const [deleting,    setDeleting]    = useState(null)
+
+  const brandId = slugify(profile.brandName)
+
+  useEffect(() => {
+    if (!profile.brandName) return
+    setLoading(true)
+    const params = new URLSearchParams({ brandId })
+    if (filter !== 'all') params.append('campaignId', filter)
+    fetch(`/.netlify/functions/asset-list?${params}`)
+      .then(r => r.json())
+      .then(data => { setAssets(Array.isArray(data) ? data : []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [profile.brandName, filter])
+
+  const handleDelete = async (key) => {
+    if (!window.confirm('Delete this asset? This cannot be undone.')) return
+    setDeleting(key)
+    try {
+      await fetch('/.netlify/functions/asset-delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      })
+      setAssets(prev => prev.filter(a => a.key !== key))
+    } catch {}
+    setDeleting(null)
+  }
+
+  const totalBytes = assets.reduce((s, a) => s + (a.size || 0), 0)
+  const fmtSize = b => b < 1048576 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1048576).toFixed(1)} MB`
+  const fmtDate = s => { try { return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) } catch { return '' } }
+
+  return (
+    <div className="content-area">
+      <p className="section-header" style={{ marginBottom: 6 }}>Asset Library</p>
+
+      {/* Storage indicator */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, padding: '10px 14px', background: 'rgba(242,237,228,0.03)', border: '1px solid rgba(242,237,228,0.07)', borderRadius: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 11, color: '#5A554F' }}>Stored assets</span>
+            <span style={{ fontSize: 11, color: '#8C8479' }}>{assets.length} file{assets.length !== 1 ? 's' : ''} · {fmtSize(totalBytes)}</span>
+          </div>
+          <div style={{ height: 2, background: 'rgba(242,237,228,0.07)', borderRadius: 1 }}>
+            <div style={{ width: `${Math.min((totalBytes / (100 * 1048576)) * 100, 100)}%`, height: '100%', background: '#2A5C4A', borderRadius: 1 }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Campaign filter */}
+      {campaigns.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+          {[{ campaignId: 'all', name: 'All Assets' }, ...campaigns].map(c => (
+            <button key={c.campaignId} onClick={() => setFilter(c.campaignId)}
+              style={{ padding: '5px 12px', background: filter === c.campaignId ? 'rgba(42,92,74,0.18)' : 'rgba(242,237,228,0.04)', border: `1px solid ${filter === c.campaignId ? 'rgba(42,92,74,0.45)' : 'rgba(242,237,228,0.08)'}`, borderRadius: 5, color: filter === c.campaignId ? '#6BD4B0' : '#5A554F', fontFamily: 'DM Sans', fontSize: 11, cursor: 'pointer' }}>
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!profile.brandName ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A554F', fontSize: 12 }}>
+          Enter a Brand Name in Brand Profile to load your library.
+        </div>
+      ) : loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A554F', fontSize: 12 }}>Loading assets...</div>
+      ) : assets.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style={{ opacity: 0.25, marginBottom: 12 }}><rect x="2" y="7" width="36" height="26" rx="3" stroke="#F2EDE4" strokeWidth="1.2"/><circle cx="13" cy="16" r="3.5" stroke="#F2EDE4" strokeWidth="1.2"/><path d="M2 29l9-7 7 6 6-5 14 10" stroke="#F2EDE4" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          <div style={{ fontSize: 12, color: '#5A554F' }}>No assets yet. Generate and save images from Asset Studio.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 14 }}>
+          {assets.map(asset => (
+            <div key={asset.key} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(242,237,228,0.08)', background: 'rgba(242,237,228,0.02)' }}>
+              <div style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', background: '#0E0D0B' }}>
+                <img src={asset.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  onError={e => { e.currentTarget.style.display = 'none' }} />
+              </div>
+              <div style={{ padding: '8px 10px' }}>
+                <div style={{ fontSize: 10, color: '#5A554F', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 6 }}>
+                  {asset.key.split('/').pop()}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 10, color: '#3A3733' }}>{fmtDate(asset.lastModified)} · {fmtSize(asset.size || 0)}</span>
+                  <button onClick={() => handleDelete(asset.key)} disabled={deleting === asset.key}
+                    style={{ padding: '3px 7px', background: 'transparent', border: '1px solid rgba(244,114,90,0.20)', borderRadius: 4, color: deleting === asset.key ? '#3A3733' : '#8C8479', fontFamily: 'DM Sans', fontSize: 10, cursor: deleting === asset.key ? 'default' : 'pointer', transition: 'color 150ms, border-color 150ms' }}
+                    onMouseEnter={e => { if (deleting !== asset.key) { e.currentTarget.style.color = '#F4725A'; e.currentTarget.style.borderColor = 'rgba(244,114,90,0.50)' } }}
+                    onMouseLeave={e => { e.currentTarget.style.color = '#8C8479'; e.currentTarget.style.borderColor = 'rgba(244,114,90,0.20)' }}>
+                    {deleting === asset.key ? '...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Section 4: Content Calendar ────────────────────────────────────── */
 function ContentCalendar({ profile }) {
   return (
     <div className="content-area">
@@ -935,6 +1090,14 @@ export default function BrandPartnerToolkit() {
             onSelectCampaign={setSelectedCampaign}
             onNewCampaign={() => setCampaignModal(true)}
             loadingCampaigns={loadingCampaigns}
+          />
+        )}
+        {section === 'library'     && (
+          <AssetLibrary
+            profile={profile}
+            campaigns={campaigns}
+            selectedCampaign={selectedCampaign}
+            onSelectCampaign={setSelectedCampaign}
           />
         )}
         {section === 'calendar'    && <ContentCalendar profile={profile} />}
