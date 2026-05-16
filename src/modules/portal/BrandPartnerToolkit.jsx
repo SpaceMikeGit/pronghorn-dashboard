@@ -471,41 +471,55 @@ function AssetStudio({ profile, campaigns, selectedCampaign, onSelectCampaign, o
     setUploadingRef(false)
   }
 
-  const pollForImage = async (requestId, prompt) => {
-    const deadline = Date.now() + 110000
-    while (Date.now() < deadline) {
-      await new Promise(r => setTimeout(r, 3000))
-      try {
-        const res  = await fetch(`/.netlify/functions/generate-image?requestId=${requestId}`)
-        const data = await res.json()
-        if (data.imageUrl) { stopProgress(100); setGeneratedImage({ url: data.imageUrl, prompt, requestId }); return }
-      } catch {}
-    }
-    stopProgress(0); setGenError('Generation timed out. Try again.')
-  }
+  const FAL_SUBMIT = 'https://queue.fal.run/fal-ai/flux-pro'
+  const FAL_STATUS = (id) => `https://queue.fal.run/fal-ai/flux-pro/requests/${id}/status`
+  const FAL_RESULT = (id) => `https://queue.fal.run/fal-ai/flux-pro/requests/${id}`
 
   const handleGenerate = async () => {
     if (!profileReady || generating) return
+    const falKey = import.meta.env.VITE_FAL_API_KEY
+    if (!falKey) { setGenError('VITE_FAL_API_KEY not configured in Netlify environment variables'); return }
+
     setGenerating(true); setGenError(null); setSavedToLib(false); setGeneratedImage(null); setCaption(null); setCaptionError(null)
     startProgress()
     const prompt = buildPrompt()
+
     try {
-      const res = await fetch('/.netlify/functions/generate-image', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, width: 1024, height: 1024, brandId, campaignId: selectedCampaign?.campaignId }),
+      // 1. Submit job to FAL queue directly from browser
+      const submitRes = await fetch(FAL_SUBMIT, {
+        method:  'POST',
+        headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ prompt, image_size: { width: 1024, height: 1024 } }),
       })
-      let data
-      try { data = await res.json() } catch {
-        throw new Error(`Server returned no response (HTTP ${res.status}) — function may have timed out. Try again.`)
+      if (!submitRes.ok) {
+        const t = await submitRes.text()
+        throw new Error(`FAL submission failed (${submitRes.status}): ${t.slice(0, 200)}`)
       }
-      if (res.status === 200 && data.imageUrl) {
-        stopProgress(100); setGeneratedImage({ url: data.imageUrl, prompt, requestId: data.requestId })
-      } else if (res.status === 202 && data.requestId) {
-        await pollForImage(data.requestId, prompt)
-      } else {
-        throw new Error(data.error || `Unexpected response (HTTP ${res.status})`)
+      const { request_id: requestId } = await submitRes.json()
+
+      // 2. Poll FAL status directly — no Lambda, no timeout risk
+      const deadline = Date.now() + 180000
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 4000))
+        try {
+          const statusRes = await fetch(FAL_STATUS(requestId), { headers: { 'Authorization': `Key ${falKey}` } })
+          const status    = await statusRes.json()
+          if (status.status === 'COMPLETED') {
+            const resultRes = await fetch(FAL_RESULT(requestId), { headers: { 'Authorization': `Key ${falKey}` } })
+            const result    = await resultRes.json()
+            const imageUrl  = result.images?.[0]?.url
+            if (imageUrl) { stopProgress(100); setGeneratedImage({ url: imageUrl, prompt, requestId }); setGenerating(false); return }
+            throw new Error('FAL returned no image URL')
+          }
+          if (status.status === 'FAILED') throw new Error('Image generation failed on FAL')
+        } catch (pollErr) {
+          if (pollErr.message.includes('FAL')) throw pollErr
+        }
       }
-    } catch (err) { stopProgress(0); setGenError(err.message) }
+      throw new Error('Generation timed out after 3 minutes. Try again.')
+    } catch (err) {
+      stopProgress(0); setGenError(err.message)
+    }
     setGenerating(false)
   }
 
