@@ -16,39 +16,23 @@ function slugify(str) {
 
 /* ── CampaignModal ───────────────────────────────────────────────────── */
 function CampaignModal({ brandId, onSave, onClose }) {
-  const [form, setForm]   = useState({ name: '', startDate: '', endDate: '', theme: '', toneDirection: '', keyMessages: '' })
-  const [saving, setSaving] = useState(false)
-  const [error, setError]   = useState(null)
+  const [form, setForm] = useState({ name: '', startDate: '', endDate: '', theme: '', toneDirection: '', keyMessages: '' })
+  const [error, setError] = useState(null)
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!form.name.trim()) { setError('Campaign name is required'); return }
-    setSaving(true); setError(null)
-    try {
-      const res  = await fetch('/.netlify/functions/campaign-save', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          brandId,
-          name:              form.name,
-          activeDates:       { start: form.startDate, end: form.endDate },
-          theme:             form.theme,
-          toneDirection:     form.toneDirection,
-          keyMessages:       form.keyMessages,
-          referenceAssetKeys: [],
-        }),
-      })
-      let data
-      try { data = await res.json() } catch { data = {} }
-      if (data.success) {
-        onSave({ campaignId: data.campaignId, brandId, name: form.name, activeDates: { start: form.startDate, end: form.endDate }, theme: form.theme, toneDirection: form.toneDirection, keyMessages: form.keyMessages, referenceAssetKeys: [] })
-      } else {
-        setError(data.error || `Server error (${res.status}) — check Netlify function logs`)
-      }
-    } catch (err) {
-      setError(`Network error — ${err.message}`)
-    }
-    setSaving(false)
+    onSave({
+      campaignId:         'campaign-' + Date.now(),
+      brandId,
+      name:               form.name,
+      activeDates:        { start: form.startDate, end: form.endDate },
+      theme:              form.theme,
+      toneDirection:      form.toneDirection,
+      keyMessages:        form.keyMessages,
+      referenceAssetKeys: [],
+      updatedAt:          new Date().toISOString(),
+    })
   }
 
   const field = (label, key, type = 'input', placeholder = '') => (
@@ -93,8 +77,8 @@ function CampaignModal({ brandId, onSave, onClose }) {
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '8px 18px', background: 'transparent', border: '1px solid rgba(242,237,228,0.14)', borderRadius: 6, color: '#8C8479', fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-          <button onClick={handleSave} disabled={saving} style={{ padding: '8px 20px', background: saving ? 'rgba(42,92,74,0.4)' : '#2A5C4A', border: 'none', borderRadius: 6, color: '#F2EDE4', fontFamily: 'DM Sans', fontSize: 12, cursor: saving ? 'default' : 'pointer' }}>
-            {saving ? 'Saving...' : 'Create Campaign'}
+          <button onClick={handleSave} style={{ padding: '8px 20px', background: '#2A5C4A', border: 'none', borderRadius: 6, color: '#F2EDE4', fontFamily: 'DM Sans', fontSize: 12, cursor: 'pointer' }}>
+            Create Campaign
           </button>
         </div>
       </div>
@@ -175,10 +159,21 @@ function getMissingFields(profile) {
 }
 
 /* ── Section 1: Brand Profile ───────────────────────────────────────── */
-function BrandProfile({ profile, setProfile }) {
-  const completeness = calcCompleteness(profile)
-  const missing      = getMissingFields(profile)
-  const update = (field, val) => setProfile(p => ({ ...p, [field]: val }))
+function BrandProfile({ profile, setProfile, onSave }) {
+  const completeness  = calcCompleteness(profile)
+  const missing       = getMissingFields(profile)
+  const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saved'
+
+  const update = (field, val) => {
+    setSaveStatus('idle')
+    setProfile(p => ({ ...p, [field]: val }))
+  }
+
+  const handleSave = () => {
+    onSave()
+    setSaveStatus('saved')
+    setTimeout(() => setSaveStatus('idle'), 2000)
+  }
 
   return (
     <div className="content-area">
@@ -344,6 +339,19 @@ function BrandProfile({ profile, setProfile }) {
               onChange={e => update('socialHandles', e.target.value)} />
           </div>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 8, paddingTop: 20, borderTop: '1px solid rgba(242,237,228,0.07)' }}>
+        <button onClick={handleSave}
+          style={{ padding: '10px 24px', background: saveStatus === 'saved' ? 'rgba(42,92,74,0.25)' : '#2A5C4A', border: saveStatus === 'saved' ? '1px solid rgba(107,212,176,0.35)' : 'none', borderRadius: 6, color: '#F2EDE4', fontFamily: 'DM Sans', fontSize: 13, cursor: 'pointer', transition: 'background 200ms' }}>
+          {saveStatus === 'saved' ? 'Profile Saved' : 'Save Profile'}
+        </button>
+        {saveStatus === 'idle' && (
+          <span style={{ fontSize: 11, color: '#5A554F' }}>Unsaved changes will be lost if you close this tab.</span>
+        )}
+        {saveStatus === 'saved' && (
+          <span style={{ fontSize: 11, color: '#6BD4B0' }}>Saved to this browser. Profile will reload on your next visit.</span>
+        )}
       </div>
     </div>
   )
@@ -1120,28 +1128,37 @@ export default function BrandPartnerToolkit() {
   const [section, setSection] = useState('profile')
   const [entered, setEntered] = useState(false)
   const [leaving, setLeaving] = useState(false)
-  const [profile, setProfile] = useState({})
+  const [profile, setProfile] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pronghorn_profile') || '{}') } catch { return {} }
+  })
 
   /* Campaign state */
   const [campaigns,        setCampaigns]        = useState([])
   const [selectedCampaign, setSelectedCampaign] = useState(null)
   const [campaignModal,    setCampaignModal]     = useState(false)
-  const [loadingCampaigns, setLoadingCampaigns] = useState(false)
 
   const brandId = slugify(profile.brandName)
 
-  /* Fetch campaigns whenever brandName changes */
+  /* Save profile to localStorage */
+  const handleSaveProfile = () => {
+    try { localStorage.setItem('pronghorn_profile', JSON.stringify(profile)) } catch {}
+  }
+
+  /* Load campaigns from localStorage whenever brandId changes */
   useEffect(() => {
-    if (!profile.brandName) return
-    setLoadingCampaigns(true)
-    fetch(`/.netlify/functions/campaign-list?brandId=${brandId}`)
-      .then(r => r.json())
-      .then(data => { setCampaigns(Array.isArray(data) ? data : []); setLoadingCampaigns(false) })
-      .catch(() => setLoadingCampaigns(false))
-  }, [profile.brandName])
+    if (!profile.brandName) { setCampaigns([]); return }
+    try {
+      const stored = localStorage.getItem('pronghorn_campaigns_' + brandId)
+      setCampaigns(stored ? JSON.parse(stored) : [])
+    } catch { setCampaigns([]) }
+  }, [brandId])
 
   const handleCampaignSaved = (campaign) => {
-    setCampaigns(prev => [campaign, ...prev])
+    setCampaigns(prev => {
+      const next = [campaign, ...prev]
+      try { localStorage.setItem('pronghorn_campaigns_' + brandId, JSON.stringify(next)) } catch {}
+      return next
+    })
     setSelectedCampaign(campaign)
     setCampaignModal(false)
   }
@@ -1196,7 +1213,7 @@ export default function BrandPartnerToolkit() {
             </button>
           ))}
         </div>
-        {section === 'profile'     && <BrandProfile profile={profile} setProfile={setProfile} />}
+        {section === 'profile'     && <BrandProfile profile={profile} setProfile={setProfile} onSave={handleSaveProfile} />}
         {section === 'studio'      && (
           <AssetStudio
             profile={profile}
@@ -1204,7 +1221,7 @@ export default function BrandPartnerToolkit() {
             selectedCampaign={selectedCampaign}
             onSelectCampaign={setSelectedCampaign}
             onNewCampaign={() => setCampaignModal(true)}
-            loadingCampaigns={loadingCampaigns}
+            loadingCampaigns={false}
           />
         )}
         {section === 'library'     && (
