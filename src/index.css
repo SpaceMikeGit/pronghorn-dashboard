@@ -20,6 +20,43 @@
   --color-text-secondary: #8C8479;
   --color-text-tertiary:  #5A554F;
   --color-border:         rgba(242, 237, 228, 0.07);
+
+  /* Edmond's Honor Marketing OS Theme */
+  --eh-bg:              #090502;
+  --eh-sidebar:         #14120D;
+  --eh-card:            #1C150E;
+  --eh-card-elevated:   #25211A;
+  --eh-border:          #544B38;
+
+  --eh-black-label:     #070101;
+  --eh-espresso:        #2B1205;
+  --eh-charcoal-olive:  #2F2F28;
+
+  --eh-gold:            #C9A45D;
+  --eh-gold-bright:     #EAA357;
+  --eh-gold-soft:       #E0C9BA;
+  --eh-paper:           #FAE1C7;
+
+  --eh-amber:           #B66313;
+  --eh-bourbon:         #BE6621;
+  --eh-copper:          #9C4213;
+  --eh-deep-copper:     #743805;
+
+  --eh-text:            #FAE1C7;
+  --eh-text-secondary:  #E0C9BA;
+  --eh-text-muted:      #A58D65;
+
+  --eh-success:         #7FA35B;
+  --eh-warning:         #BE6621;
+  --eh-danger:          #B55332;
+}
+
+/* ── EH active card ─────────────────────────────────────────────────── */
+.eh-card-active {
+  border-color: #C9A45D !important;
+  box-shadow:
+    0 0 0 1px rgba(201, 164, 93, 0.25),
+    0 18px 50px rgba(190, 102, 33, 0.12);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────── */

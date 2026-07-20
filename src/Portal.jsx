@@ -47,6 +47,15 @@ const MODULES = [
     path:    '/brand-partner',
     locked:  false,
   },
+  {
+    num:     'EH',
+    name:    "Edmond's Honor Marketing OS",
+    subtitle:'Campaign, Activation & Growth Command Prototype',
+    color:   '#C9A45D',
+    path:    '/edmonds-honor',
+    locked:  false,
+    isEH:    true,
+  },
 ]
 
 /* ── ModuleCard ─────────────────────────────────────────────────────── */
@@ -70,7 +79,10 @@ function ModuleCard({ mod, onNavigate }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={handleClick}
-      style={{ '--mod-color': mod.color }}
+      style={{
+        '--mod-color': mod.color,
+        ...(mod.isEH && hovered ? { boxShadow: '0 0 0 1px rgba(201,164,93,0.35), 0 18px 40px rgba(190,102,33,0.18)' } : {}),
+      }}
     >
       {/* SVG border trace */}
       <svg
@@ -100,17 +112,22 @@ function ModuleCard({ mod, onNavigate }) {
       {/* Color wash interior */}
       <div
         className="portal-card__wash"
-        style={{ background: mod.color }}
+        style={{ background: mod.isEH ? 'linear-gradient(135deg, rgba(201,164,93,0.18) 0%, rgba(190,102,33,0.10) 100%)' : mod.color }}
       />
 
       {/* Card content */}
       <div className="portal-card__content" style={mod.num === '03' ? { paddingTop: 36 } : undefined}>
-        <img
-          src="/pronghorn-logomark-white.png"
-          alt=""
-          className="portal-card__logomark"
-        />
+        {mod.isEH ? (
+          <img src="/images/edmonds-honor/eh-sidebar-logo-button.png" alt="Edmond's Honor" className="portal-card__logomark" style={{ objectFit: 'contain' }} />
+        ) : (
+          <img src="/pronghorn-logomark-white.png" alt="" className="portal-card__logomark" />
+        )}
         <div className="portal-card__name">{mod.name}</div>
+        {mod.subtitle && (
+          <div style={{ fontSize: 10, color: 'rgba(201,164,93,0.75)', letterSpacing: '0.04em', marginTop: 6, lineHeight: 1.4 }}>
+            {mod.subtitle}
+          </div>
+        )}
       </div>
 
       {/* Locked overlay */}
