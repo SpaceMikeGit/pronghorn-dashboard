@@ -1,88 +1,117 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+const EH_GOLD = '#C9A45D'
+
 const MODULES = [
-  {
-    num:      '01',
-    title:    'Executive Growth Dashboard',
-    subtitle: 'Spend, activation, market heat, and leadership decisions in one view.',
-    path:     '/edmonds-honor/growth-dashboard',
-  },
-  {
-    num:      '02',
-    title:    'Activation Pipeline',
-    subtitle: 'Events, tastings, partnerships, and field execution from concept to recap.',
-    path:     '/edmonds-honor/activation-pipeline',
-  },
-  {
-    num:      '03',
-    title:    'Partnership Fit Matrix',
-    subtitle: 'Brand-right scoring for hotels, chefs, galleries, creators, and cultural partners.',
-    path:     '/edmonds-honor/partnership-fit',
-  },
-  {
-    num:      '04',
-    title:    'Content & Campaign Calendar',
-    subtitle: 'Content programming, pillar strategy, and platform scheduling across markets.',
-    path:     '/edmonds-honor/content-calendar',
-  },
-  {
-    num:      '05',
-    title:    'Post-Event Recap Generator',
-    subtitle: 'Structured recap framework with outcome capture and learning transfer.',
-    path:     '/edmonds-honor/event-recaps',
-  },
+  { num: '01', name: 'Executive Growth Dashboard',    path: '/edmonds-honor/growth-dashboard' },
+  { num: '02', name: 'Activation Pipeline',            path: '/edmonds-honor/activation-pipeline' },
+  { num: '03', name: 'Partnership Fit Matrix',         path: '/edmonds-honor/partnership-fit' },
+  { num: '04', name: 'Content & Campaign Calendar',    path: '/edmonds-honor/content-calendar' },
+  { num: '05', name: 'Post-Event Recap Generator',     path: '/edmonds-honor/event-recaps' },
 ]
 
 const DEMO_PATH = [
-  { step: 1, label: 'See the growth picture',   destination: 'Executive Growth Dashboard',  path: '/edmonds-honor/growth-dashboard' },
-  { step: 2, label: 'Manage the work',           destination: 'Activation Pipeline + Content Calendar', path: '/edmonds-honor/activation-pipeline' },
-  { step: 3, label: 'Build the right partners',  destination: 'Partnership Fit Matrix',      path: '/edmonds-honor/partnership-fit' },
-  { step: 4, label: 'Prove the impact',          destination: 'Event Recap Generator',       path: '/edmonds-honor/event-recaps' },
+  { step: 1, label: 'See the growth picture',   sub: 'Executive Growth Dashboard',         path: '/edmonds-honor/growth-dashboard' },
+  { step: 2, label: 'Manage the work',           sub: 'Activation Pipeline + Content Calendar', path: '/edmonds-honor/activation-pipeline' },
+  { step: 3, label: 'Build the right partners',  sub: 'Partnership Fit Matrix',             path: '/edmonds-honor/partnership-fit' },
+  { step: 4, label: 'Prove the impact',          sub: 'Event Recap Generator',              path: '/edmonds-honor/event-recaps' },
 ]
 
-function ModuleCard({ mod, onNavigate }) {
+/* ── Module card — mirrors Portal.jsx ModuleCard exactly ───────────────── */
+function EHModuleCard({ mod, onNavigate }) {
   const [hovered, setHovered] = useState(false)
+  const svgRef = useRef(null)
+
   return (
     <div
-      onClick={() => onNavigate(mod.path)}
+      style={{
+        position: 'relative',
+        width: 160,
+        height: 200,
+        cursor: 'pointer',
+        flexShrink: 0,
+        borderRadius: 12,
+        transform: hovered ? 'scale(1.045)' : 'scale(1)',
+        transition: 'transform 200ms ease-in-out',
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      style={{
-        background: hovered ? 'var(--eh-card-elevated)' : 'var(--eh-card)',
-        border: `1px solid ${hovered ? 'var(--eh-gold)' : 'var(--eh-border)'}`,
-        borderRadius: 10,
-        padding: '22px 24px',
-        cursor: 'pointer',
-        transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
-        boxShadow: hovered ? '0 0 0 1px rgba(201,164,93,0.18), 0 12px 32px rgba(190,102,33,0.10)' : 'none',
-      }}
+      onClick={() => onNavigate(mod.path)}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-        <span style={{
-          fontSize: 10, fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase',
-          color: 'var(--eh-gold)', minWidth: 24, paddingTop: 2,
+      {/* SVG border trace */}
+      <svg
+        ref={svgRef}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3 }}
+        viewBox="0 0 160 200"
+        fill="none"
+        preserveAspectRatio="none"
+      >
+        {/* White base — always visible */}
+        <rect x="1" y="1" width="158" height="198" rx="11" stroke="white" strokeWidth="1.5" fill="none" opacity="0.35" />
+        {/* Gold trace — animates in on hover */}
+        <rect
+          x="1" y="1" width="158" height="198" rx="11"
+          stroke={EH_GOLD}
+          strokeWidth="1.5"
+          fill="none"
+          style={{
+            strokeDasharray: 720,
+            strokeDashoffset: hovered ? 0 : 720,
+            opacity: hovered ? 1 : 0,
+            transition: 'stroke-dashoffset 420ms ease-in-out, opacity 60ms ease-in-out',
+          }}
+        />
+      </svg>
+
+      {/* Warm gold wash on hover */}
+      <div style={{
+        position: 'absolute', inset: 2, borderRadius: 10, zIndex: 1,
+        background: 'linear-gradient(135deg, rgba(201,164,93,0.18) 0%, rgba(190,102,33,0.10) 100%)',
+        opacity: hovered ? 0.10 : 0,
+        transition: 'opacity 300ms ease-in-out',
+      }} />
+
+      {/* Card content */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 2,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        gap: 10, padding: '20px 12px',
+      }}>
+        <img
+          src="/images/edmonds-honor/eh-hand-logomark.png"
+          alt=""
+          style={{ width: 44, height: 'auto', display: 'block', opacity: 0.90 }}
+        />
+        <div style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 10, fontWeight: 400,
+          color: 'rgba(201,164,93,0.55)',
+          letterSpacing: '0.12em', lineHeight: 1,
         }}>
           {mod.num}
-        </span>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--eh-text)', marginBottom: 5, lineHeight: 1.35 }}>
-            {mod.title}
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--eh-text-muted)', lineHeight: 1.5 }}>
-            {mod.subtitle}
-          </div>
+        </div>
+        <div style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 11, fontWeight: 400,
+          color: 'rgba(250,225,199,0.85)',
+          letterSpacing: '0.04em',
+          textAlign: 'center', lineHeight: 1.4,
+        }}>
+          {mod.name}
         </div>
       </div>
     </div>
   )
 }
 
+/* ── EH Portal shell ───────────────────────────────────────────────────── */
 export default function EHPortal() {
   const navigate  = useNavigate()
   const bgRef     = useRef(null)
-  const [entered, setEntered]   = useState(false)
-  const [leaving, setLeaving]   = useState(false)
+  const [entered, setEntered] = useState(false)
+  const [leaving, setLeaving] = useState(false)
 
   /* Ken Burns + parallax */
   useEffect(() => {
@@ -93,7 +122,6 @@ export default function EHPortal() {
     let px = 0, py = 0
 
     bg.style.transform = 'scale(1.08)'
-
     const apply = scale => (bg.style.transform = `scale(${scale.toFixed(4)}) translate(${px.toFixed(1)}px,${py.toFixed(1)}px)`)
 
     const tick = ts => {
@@ -106,8 +134,8 @@ export default function EHPortal() {
     }
 
     const onMove = e => {
-      px = (e.clientX / window.innerWidth  - 0.5) * -10
-      py = (e.clientY / window.innerHeight - 0.5) * -10
+      px = (e.clientX / window.innerWidth  - 0.5) * -12
+      py = (e.clientY / window.innerHeight - 0.5) * -12
       if (kbDone) apply(1.0)
     }
 
@@ -118,7 +146,7 @@ export default function EHPortal() {
 
   useEffect(() => { const t = setTimeout(() => setEntered(true), 20); return () => clearTimeout(t) }, [])
 
-  const go = (path) => {
+  const go = path => {
     setLeaving(true)
     setTimeout(() => navigate(path), 340)
   }
@@ -126,19 +154,19 @@ export default function EHPortal() {
   return (
     <div style={{
       position: 'relative',
-      width: '100%',
-      height: '100vh',
+      width: '100vw', height: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
       overflow: 'hidden',
-      background: 'var(--eh-bg)',
-      transform: leaving ? 'translateX(60px)' : entered ? 'translateX(0)' : 'translateX(60px)',
-      opacity: (leaving || !entered) ? 0 : 1,
-      transition: 'transform 360ms ease-in-out, opacity 360ms ease-in-out',
+      background: '#090502',
+      transform: leaving ? 'translateX(-48px)' : entered ? 'translateX(0)' : 'translateX(0)',
+      opacity: leaving ? 0 : entered ? 1 : 0,
+      transition: 'transform 380ms ease-in-out, opacity 380ms ease-in-out',
     }}>
-      {/* Background image */}
+      {/* Background */}
       <div
         ref={bgRef}
         style={{
-          position: 'absolute', inset: '-10%',
+          position: 'absolute', inset: '-24px',
           background: [
             'radial-gradient(circle at center, rgba(9,5,2,0.35), rgba(9,5,2,0.88) 70%)',
             'linear-gradient(90deg, rgba(9,5,2,0.92) 0%, rgba(9,5,2,0.72) 45%, rgba(9,5,2,0.92) 100%)',
@@ -147,129 +175,115 @@ export default function EHPortal() {
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           transformOrigin: 'center center',
+          zIndex: 0,
         }}
       />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(9,5,2,0.45)', zIndex: 1 }} />
 
-      {/* Back link */}
+      {/* Back to Pronghorn Suite */}
       <button
         onClick={() => go('/')}
         style={{
-          position: 'absolute', top: 28, left: 32, zIndex: 10,
+          position: 'absolute', top: 28, left: 36, zIndex: 10,
           background: 'none', border: 'none', cursor: 'pointer',
           color: 'var(--eh-text-muted)', fontSize: 11, letterSpacing: '0.05em',
           transition: 'color 0.2s',
         }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--eh-gold)'}
+        onMouseEnter={e => e.currentTarget.style.color = EH_GOLD}
         onMouseLeave={e => e.currentTarget.style.color = 'var(--eh-text-muted)'}
       >
         &larr; Pronghorn Suite
       </button>
 
-      {/* Scrollable content */}
+      {/* Centered content */}
       <div style={{
         position: 'relative', zIndex: 2,
-        height: '100%', overflowY: 'auto',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        padding: '72px 48px 64px',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center',
+        width: '100%',
+        paddingTop: 'calc(28vh - 80px)',
+        gap: 0,
       }}>
-        <div style={{ width: '100%', maxWidth: 900 }}>
+        {/* Full brand logo — large + centered */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <img
+            src="/images/edmonds-honor/eh-sidebar-logo-button.png"
+            alt="Edmond's Honor"
+            style={{ height: 120, width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+          />
+        </div>
 
-          {/* Logo */}
-          <div style={{ marginBottom: 28 }}>
-            <img
-              src="/images/edmonds-honor/eh-sidebar-logo-button.png"
-              alt="Edmond's Honor"
-              style={{ height: 56, objectFit: 'contain' }}
-            />
-          </div>
-
-          {/* Header */}
-          <div style={{ marginBottom: 10 }}>
-            <div style={{
-              fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
-              color: 'var(--eh-gold)', marginBottom: 14,
-            }}>
-              Marketing OS
-            </div>
-            <h1 style={{
-              fontSize: 28, fontWeight: 300, letterSpacing: '0.06em', textTransform: 'uppercase',
-              color: 'var(--eh-text)', lineHeight: 1.2, marginBottom: 14,
-            }}>
-              Campaign, activation, and growth command prototype.
-            </h1>
-            <p style={{ fontSize: 13, color: 'var(--eh-text-secondary)', lineHeight: 1.7, maxWidth: 640 }}>
-              A sample operating system for connecting brand world-building, field execution,
-              content performance, partnership fit, market intelligence, and commercial
-              follow-through. Illustrative data only.
-            </p>
-          </div>
-
-          {/* Gold rule */}
-          <div style={{ borderBottom: '1px solid rgba(201,164,93,0.25)', margin: '32px 0' }} />
-
-          {/* Demo Path */}
-          <div style={{ marginBottom: 40 }}>
-            <div style={{
-              fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
-              color: 'var(--eh-text-muted)', marginBottom: 18,
-            }}>
-              Marketing Director Demo Path — Start here
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-              {DEMO_PATH.map((item) => (
-                <button
-                  key={item.step}
-                  onClick={() => go(item.path)}
-                  style={{
-                    background: 'rgba(201,164,93,0.06)',
-                    border: '1px solid rgba(201,164,93,0.2)',
-                    borderRadius: 8,
-                    padding: '16px 16px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background 0.2s, border-color 0.2s',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,164,93,0.12)'; e.currentTarget.style.borderColor = 'var(--eh-gold)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,164,93,0.06)'; e.currentTarget.style.borderColor = 'rgba(201,164,93,0.2)' }}
-                >
-                  <div style={{ fontSize: 10, color: 'var(--eh-gold)', marginBottom: 6, letterSpacing: '0.06em' }}>
-                    {item.step}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--eh-text)', fontWeight: 500, marginBottom: 4, lineHeight: 1.3 }}>
-                    {item.label}
-                  </div>
-                  <div style={{ fontSize: 10, color: 'var(--eh-text-muted)', lineHeight: 1.4 }}>
-                    {item.destination}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Gold rule */}
-          <div style={{ borderBottom: '1px solid rgba(201,164,93,0.15)', marginBottom: 28 }} />
-
-          {/* Module grid */}
-          <div style={{
-            fontSize: 9, letterSpacing: '0.16em', textTransform: 'uppercase',
-            color: 'var(--eh-text-muted)', marginBottom: 16,
+        {/* Suite name + tagline */}
+        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+          <h1 style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 'clamp(18px, 2.4vw, 30px)',
+            fontWeight: 500,
+            color: '#FAE1C7',
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            margin: '0 0 14px',
+            lineHeight: 1.1,
           }}>
-            All Modules
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {MODULES.map(mod => (
-              <ModuleCard key={mod.num} mod={mod} onNavigate={go} />
-            ))}
-          </div>
-
-          {/* Disclaimer */}
-          <div style={{
-            marginTop: 48, fontSize: 10, letterSpacing: '0.08em',
-            color: 'var(--eh-text-muted)', textTransform: 'uppercase',
-            borderTop: '1px solid rgba(201,164,93,0.10)', paddingTop: 20,
+            Edmond's Honor Marketing OS
+          </h1>
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 13, fontWeight: 300,
+            color: 'rgba(250,225,199,0.60)',
+            letterSpacing: '0.16em',
+            margin: 0,
+            textTransform: 'uppercase',
           }}>
-            All data shown is sample / illustrative unless otherwise noted.
-          </div>
+            Campaign, activation &amp; growth command prototype
+          </p>
+        </div>
+
+        {/* Demo Path */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 36, alignItems: 'stretch' }}>
+          {DEMO_PATH.map((item, i) => (
+            <div key={item.step} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={() => go(item.path)}
+                style={{
+                  background: 'rgba(201,164,93,0.06)',
+                  border: '1px solid rgba(201,164,93,0.18)',
+                  borderRadius: 8, padding: '10px 16px',
+                  cursor: 'pointer', textAlign: 'left',
+                  transition: 'background 0.2s, border-color 0.2s',
+                  minWidth: 140,
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,164,93,0.12)'; e.currentTarget.style.borderColor = EH_GOLD }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(201,164,93,0.06)'; e.currentTarget.style.borderColor = 'rgba(201,164,93,0.18)' }}
+              >
+                <div style={{ fontSize: 9, color: EH_GOLD, letterSpacing: '0.08em', marginBottom: 4 }}>{item.step}</div>
+                <div style={{ fontSize: 11, color: 'rgba(250,225,199,0.9)', fontWeight: 500, marginBottom: 2, lineHeight: 1.3 }}>{item.label}</div>
+                <div style={{ fontSize: 10, color: 'var(--eh-text-muted)', lineHeight: 1.3 }}>{item.sub}</div>
+              </button>
+              {i < DEMO_PATH.length - 1 && (
+                <span style={{ color: 'rgba(201,164,93,0.25)', fontSize: 12 }}>→</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Module cards — exact Pronghorn portal card layout */}
+        <div style={{ display: 'flex', gap: 20, alignItems: 'stretch', justifyContent: 'center' }}>
+          {MODULES.map(mod => (
+            <EHModuleCard key={mod.num} mod={mod} onNavigate={go} />
+          ))}
+        </div>
+
+        {/* Disclaimer */}
+        <div style={{
+          marginTop: 28,
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 10, fontWeight: 300,
+          color: 'rgba(165,141,101,0.5)',
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+        }}>
+          Illustrative data only
         </div>
       </div>
     </div>
