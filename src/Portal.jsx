@@ -118,14 +118,22 @@ function ModuleCard({ mod, onNavigate }) {
       {/* Card content */}
       <div className="portal-card__content" style={mod.num === '03' ? { paddingTop: 36 } : undefined}>
         {mod.isEH ? (
-          <img src="/images/edmonds-honor/eh-sidebar-logo-button.png" alt="Edmond's Honor" className="portal-card__logomark" style={{ objectFit: 'contain' }} />
+          <img src="/images/edmonds-honor/eh-hand-logomark.png" alt="Edmond's Honor" className="portal-card__logomark" style={{ objectFit: 'contain' }} />
         ) : (
           <img src="/pronghorn-logomark-white.png" alt="" className="portal-card__logomark" />
         )}
-        <div className="portal-card__name">{mod.name}</div>
-        {mod.subtitle && (
-          <div style={{ fontSize: 10, color: 'rgba(201,164,93,0.75)', letterSpacing: '0.04em', marginTop: 6, lineHeight: 1.4 }}>
-            {mod.subtitle}
+        <div
+          className="portal-card__name"
+          style={{ color: hovered ? mod.color : 'rgba(242,237,228,0.85)', transition: 'color 200ms ease-in-out' }}
+        >
+          {mod.name}
+        </div>
+        {mod.isEH && (
+          <div style={{
+            fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
+            color: 'rgba(201,164,93,0.60)', marginTop: 2,
+          }}>
+            Demo
           </div>
         )}
       </div>
