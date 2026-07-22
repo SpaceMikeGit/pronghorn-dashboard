@@ -116,7 +116,7 @@ function ModuleCard({ mod, onNavigate }) {
       />
 
       {/* Card content */}
-      <div className="portal-card__content" style={mod.num === '03' ? { paddingTop: 36 } : undefined}>
+      <div className="portal-card__content" style={(mod.num === '03' || mod.isEH) ? { paddingTop: 36 } : undefined}>
         {mod.isEH ? (
           <img src="/images/edmonds-honor/eh-hand-logomark.png" alt="Edmond's Honor" style={{ height: 44, width: 'auto', maxWidth: 52, display: 'block', opacity: 0.90 }} />
         ) : (
@@ -130,8 +130,9 @@ function ModuleCard({ mod, onNavigate }) {
         </div>
         {mod.isEH && (
           <div style={{
-            fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
-            color: 'rgba(201,164,93,0.60)', marginTop: 2,
+            position: 'absolute', bottom: 16, left: 0, right: 0,
+            textAlign: 'center', fontSize: 9, letterSpacing: '0.14em',
+            textTransform: 'uppercase', color: 'rgba(201,164,93,0.60)',
           }}>
             Demo
           </div>

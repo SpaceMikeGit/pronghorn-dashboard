@@ -201,20 +201,20 @@ export default function EHPortal() {
         display: 'flex', flexDirection: 'column',
         alignItems: 'center',
         width: '100%',
-        paddingTop: 'calc(28vh - 80px)',
+        paddingTop: 'calc(4vh + 4px)',
         gap: 0,
       }}>
         {/* Full brand logo — large + centered */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+        <div style={{ textAlign: 'center', marginBottom: 12 }}>
           <img
             src="/images/edmonds-honor/eh-sidebar-logo-button.png"
             alt="Edmond's Honor"
-            style={{ height: 120, width: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+            style={{ height: 'clamp(200px, calc(78vh - 368px), 598px)', width: 'auto', maxWidth: 520, display: 'block', margin: '0 auto' }}
           />
         </div>
 
         {/* Suite name + tagline */}
-        <div style={{ textAlign: 'center', marginBottom: 48 }}>
+        <div style={{ textAlign: 'center', marginBottom: 16 }}>
           <h1 style={{
             fontFamily: "'DM Sans', sans-serif",
             fontSize: 'clamp(18px, 2.4vw, 30px)',
@@ -240,7 +240,7 @@ export default function EHPortal() {
         </div>
 
         {/* Demo Path */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 36, alignItems: 'stretch' }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 12, alignItems: 'stretch' }}>
           {DEMO_PATH.map((item, i) => (
             <div key={item.step} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
