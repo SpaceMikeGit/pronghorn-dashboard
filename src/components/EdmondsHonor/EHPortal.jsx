@@ -197,10 +197,9 @@ export default function EHPortal() {
 
       {/* Centered content */}
       <div style={{
-        position: 'relative', zIndex: 2,
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center',
-        width: '100%',
         paddingTop: 'calc(4vh + 4px)',
         gap: 0,
       }}>
