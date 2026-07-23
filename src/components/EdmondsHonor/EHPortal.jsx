@@ -200,15 +200,15 @@ export default function EHPortal() {
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center',
-        paddingTop: 'calc(4vh + 4px)',
+        paddingTop: 'max(calc(4vh + 4px), calc(82vh - 827px))',
         gap: 0,
       }}>
         {/* Full brand logo — large + centered */}
-        <div style={{ textAlign: 'center', marginBottom: 12 }}>
+        <div style={{ textAlign: 'center', marginBottom: 52 }}>
           <img
             src="/images/edmonds-honor/eh-sidebar-logo-button.png"
             alt="Edmond's Honor"
-            style={{ height: 'clamp(200px, calc(78vh - 368px), 598px)', width: 'auto', maxWidth: 520, display: 'block', margin: '0 auto' }}
+            style={{ height: 'clamp(200px, calc(78vh - 368px), 420px)', width: 'auto', maxWidth: 520, display: 'block', margin: '0 auto' }}
           />
         </div>
 
